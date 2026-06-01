@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../shared/services/api_service.dart';
@@ -8,9 +9,29 @@ import '../../../core/constants.dart';
 
 final authStateProvider = AsyncNotifierProvider<AuthNotifier, UserModel?>(() => AuthNotifier());
 
+/// Demo admin user — used ONLY on web build (public demo).
+/// Mobile builds still go through the real OTP login flow.
+final _demoWebUser = UserModel(
+  id:           'demo-web-admin',
+  employeeId:   'EMP-DEMO',
+  firstName:    'Demo',
+  lastName:     'Admin',
+  email:        'demo@creanno.com',
+  phone:        '+91 00000 00000',
+  role:         'admin',
+  department:   'Operations',
+  designation:  'Owner',
+  profilePhoto: null,
+);
+
 class AuthNotifier extends AsyncNotifier<UserModel?> {
   @override
   Future<UserModel?> build() async {
+    // ── Web demo mode: skip login completely ────────────────────────────
+    if (kIsWeb) {
+      return _demoWebUser;
+    }
+
     final token = await StorageService.read(key: AppConstants.accessTokenKey);
     if (token == null) return null;
     try {
@@ -49,6 +70,9 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
   }
 
   Future<void> logout() async {
+    // Web demo: ignore logout — keeps the public demo always-on
+    if (kIsWeb) return;
+
     try {
       await api.post('/auth/logout');
     } catch (_) {}

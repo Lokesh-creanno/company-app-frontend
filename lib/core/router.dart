@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,9 +36,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    // Web demo lands directly on Admin Panel; mobile starts at login
+    initialLocation: kIsWeb ? '/admin' : '/login',
     refreshListenable: notifier,
     redirect: (context, state) {
+      // Web demo mode: never redirect, never gate routes
+      if (kIsWeb) {
+        final loc = state.matchedLocation;
+        // If a deep-link sends to /login or /otp on web, send them to admin
+        if (loc.startsWith('/login') || loc.startsWith('/otp')) return '/admin';
+        return null;
+      }
+
       final authState = ref.read(authStateProvider);
       if (authState.isLoading) return null;
 
