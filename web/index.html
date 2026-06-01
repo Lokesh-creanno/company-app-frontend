@@ -1,38 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="CREANNO — Cross-platform company management app for event agencies. Built by Smart Innovations with AI features powered by Gemini 1.5 Flash.">
+  <meta name="theme-color" content="#7C3AED">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Social preview -->
+  <meta property="og:title" content="CREANNO — Company Management App">
+  <meta property="og:description" content="AI-powered company management for event agencies. Task auto-assignment, daily planner, smart alerts.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="icons/Icon-512.png">
+
+  <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="mobile">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CREANNO">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>mobile</title>
+  <title>CREANNO — Company Management App</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body, html { margin:0; padding:0; height:100%; background:#070711; font-family:'Segoe UI', sans-serif; }
+    #loader {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:linear-gradient(135deg, #070711 0%, #0D0B1E 100%);
+      color:#A78BFA; z-index:9999; transition:opacity 0.6s;
+    }
+    #loader .logo {
+      font-size:42px; font-weight:900; letter-spacing:-1px;
+      background:linear-gradient(90deg, #7C3AED, #06B6D4, #EC4899);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+      margin-bottom:8px;
+    }
+    #loader .subtitle { font-size:13px; color:#8B8BA8; margin-bottom:32px; }
+    #loader .spinner {
+      width:36px; height:36px;
+      border:3px solid rgba(124,58,237,0.15); border-top-color:#7C3AED;
+      border-radius:50%; animation:spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hidden { opacity:0; pointer-events:none; }
+  </style>
 </head>
 <body>
+  <div id="loader">
+    <div class="logo">✨ CREANNO</div>
+    <div class="subtitle">Company Management • AI Powered</div>
+    <div class="spinner"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function() {
+      var l = document.getElementById('loader');
+      if (l) { l.classList.add('hidden'); setTimeout(function(){ l.remove(); }, 700); }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
