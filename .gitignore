@@ -1,0 +1,59 @@
+# Flutter / Dart / Pub
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.g.dart
+*.freezed.dart
+
+# Symbolication / Obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android secrets
+google-services.json
+android/key.properties
+android/app/upload-keystore.jks
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS secrets
+GoogleService-Info.plist
+ios/Flutter/.last_build_id
+
+# Environment
+.env
+.env.local
+.env.production
+*.keystore
+*.jks
+
+# Windows ephemeral
+windows/flutter/ephemeral/
+
+# IDE
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/launch.json
+
+# Distribution artifacts (built locally, not committed)
+CREANNO_Distribution/
+release/
+*.apk
+*.aab
+*.exe
+*.dmg
+*.ipa
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

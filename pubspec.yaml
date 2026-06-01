@@ -1,0 +1,102 @@
+name: company_app
+description: Internal Company Application - Cross Platform
+publish_to: 'none'
+version: 1.4.0+4
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # HTTP & API
+  dio: ^5.4.1
+  dio_cache_interceptor: ^3.4.4
+
+  # Secure Storage (replaced with shared_preferences for cross-platform compatibility)
+  # flutter_secure_storage: ^9.0.0
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+  hive_flutter: ^1.1.0
+
+  # UI Components
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  lottie: ^3.0.0
+
+  # Forms & Validation
+  reactive_forms: ^17.0.0
+  intl: ^0.19.0
+
+  # File Handling
+  file_picker: ^8.0.0
+  image_picker: ^1.0.7
+
+  # OCR - Bill scanning (on-device, free)
+  google_mlkit_text_recognition: ^0.13.0
+
+  # AI Integration — Gemini 1.5 Flash (FREE: 1500 req/day, 1M tokens/day)
+  # Get free API key at: https://aistudio.google.com/app/apikey
+  google_generative_ai: ^0.4.6
+  path_provider: ^2.1.2
+  open_file: ^3.3.2
+  pdf: ^3.10.7
+  # printing: ^5.12.0  # compileSdkVersion 30 conflicts with Material3 lStar attr on Android
+
+  # Notifications (mobile only — Firebase Windows requires NuGet/native SDK)
+  # firebase_core: ^2.27.0
+  # firebase_messaging: ^14.7.19
+  # flutter_local_notifications: ^17.0.0
+
+  # Charts & Analytics
+  fl_chart: ^0.67.0
+
+  # Location (mobile only — stubbed on Windows/Web)
+  # geolocator: ^11.0.0
+
+  # Biometrics (mobile only — not supported on Windows desktop)
+  # local_auth: ^2.1.7
+
+  # Date & Time
+  table_calendar: ^3.0.9
+
+  # Permissions
+  permission_handler: ^11.3.0
+
+  # Connectivity
+  connectivity_plus: ^6.0.1
+
+  # Utils
+  uuid: ^4.3.3
+  equatable: ^2.0.5
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  url_launcher: ^6.2.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
+  riverpod_generator: ^2.3.9
+  freezed: ^2.4.7
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/CREANNO_Icon.png
+    - assets/CREANNO_Logo.png
