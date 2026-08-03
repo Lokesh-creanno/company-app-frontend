@@ -1,0 +1,12 @@
+.git
+.dart_tool
+build
+android
+ios
+windows
+macos
+linux
+test
+.metadata
+*.md
+CREANNO_Distribution
