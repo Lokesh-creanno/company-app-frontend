@@ -90,7 +90,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen>
     final isWide = MediaQuery.of(context).size.width >= 720;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bgOf(context),
       body: Column(
         children: [
           // ── Header ─────────────────────────────────────────────────────────
@@ -295,10 +295,6 @@ class _AdminDashboard extends StatelessWidget {
             ),
           ),
 
-        // ── AI Command Center banner ─────────────────────────────────────────
-        if (AiConfig.aiEnabled) _AiHubBanner(),
-        if (AiConfig.aiEnabled) const SizedBox(height: 16),
-
         // ── Error Monitor mini card ──────────────────────────────────────────
         _ErrorMonitorCard(isDark: isDark),
         const SizedBox(height: 20),
@@ -314,6 +310,10 @@ class _AdminDashboard extends StatelessWidget {
         ], isDark),
 
         const SizedBox(height: 20),
+
+        // ── AI Command Center banner (moved below KPIs) ──────────────────────
+        if (AiConfig.aiEnabled) _AiHubBanner(),
+        if (AiConfig.aiEnabled) const SizedBox(height: 20),
 
         // ── TASKS section ────────────────────────────────────────────────────
         _DashSection('Tasks Overview', Icons.task_alt_rounded, isDark),
@@ -431,8 +431,16 @@ class _KpiCard extends StatelessWidget {
             child: Icon(data.icon, color: data.color, size: 22),
           ),
           const SizedBox(height: 8),
-          Text(data.value,
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: data.color, height: 1)),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: ScaleTransition(scale: anim, child: child),
+            ),
+            child: Text(data.value,
+              key: ValueKey(data.value),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: data.color, height: 1)),
+          ),
           const SizedBox(height: 4),
           Text(data.label,
             textAlign: TextAlign.center,
@@ -804,7 +812,7 @@ class _EmployeesTabState extends ConsumerState<_EmployeesTab> {
     return Column(children: [
       // Search + Add bar
       Container(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         padding: EdgeInsets.all(widget.isWide ? 20 : 14),
         child: Row(children: [
           Expanded(
@@ -929,7 +937,7 @@ class _AdminEmployeeTile extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Text('${emp['firstName']} ${emp['lastName']}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary))),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimaryOf(context)))),
             if (!isActive) Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
@@ -938,7 +946,7 @@ class _AdminEmployeeTile extends StatelessWidget {
           ]),
           const SizedBox(height: 2),
           Text(emp['designation'] ?? emp['department'] ?? '',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context))),
           const SizedBox(height: 4),
           Row(children: [
             Container(
@@ -954,7 +962,7 @@ class _AdminEmployeeTile extends StatelessWidget {
         ])),
         // Actions
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+          icon: Icon(Icons.more_vert, color: AppColors.textSecondaryOf(context), size: 20),
           onSelected: (v) => _onAction(context, v),
           itemBuilder: (_) => [
             const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility_rounded, size: 16), SizedBox(width: 8), Text('View Details')])),
@@ -1063,11 +1071,11 @@ class _AdminEmployeeCard extends StatelessWidget {
         Text('${emp['firstName']} ${emp['lastName']}',
             textAlign: TextAlign.center,
             maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimary)),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimaryOf(context))),
         const SizedBox(height: 3),
         Text(emp['designation'] ?? emp['department'] ?? '',
             textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context))),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1125,9 +1133,9 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
       minChildSize: 0.5,
       maxChildSize: 0.96,
       builder: (_, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: AppColors.bgOf(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
           // Handle
@@ -1135,14 +1143,14 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
             child: Container(
               margin: const EdgeInsets.only(top: 12, bottom: 4),
               width: 40, height: 4,
-              decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: AppColors.borderOf(context), borderRadius: BorderRadius.circular(2)),
             ),
           ),
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(20, 8, 12, 16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.borderOf(context), width: 1)),
             ),
             child: Row(children: [
               Container(
@@ -1151,8 +1159,8 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
                 child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: Text('Add New Employee',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary))),
+              Expanded(child: Text('Add New Employee',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimaryOf(context)))),
               IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(context)),
             ]),
           ),
@@ -1184,7 +1192,7 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
                   _FormSection(title: 'Role & Department', children: [
                     // Role picker
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context))),
                       const SizedBox(height: 8),
                       Row(children: _roles.map((r) => Expanded(
                         child: Padding(
@@ -1196,17 +1204,17 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
                                 gradient: _role == r ? AppGradients.primary : null,
-                                color: _role == r ? null : AppColors.surfaceVariant,
+                                color: _role == r ? null : AppColors.surfaceVarOf(context),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                    color: _role == r ? AppColors.primary : AppColors.border,
+                                    color: _role == r ? AppColors.primary : AppColors.borderOf(context),
                                     width: _role == r ? 2 : 1.5),
                               ),
                               child: Text(r[0].toUpperCase() + r.substring(1),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                       fontSize: 13, fontWeight: FontWeight.w700,
-                                      color: _role == r ? Colors.white : AppColors.textSecondary)),
+                                      color: _role == r ? Colors.white : AppColors.textSecondaryOf(context))),
                             ),
                           ),
                         ),
@@ -1324,17 +1332,17 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
       minChildSize: 0.5,
       maxChildSize: 0.96,
       builder: (_, sc) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: AppColors.bgOf(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
           Center(child: Container(margin: const EdgeInsets.only(top: 12, bottom: 4),
-              width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
+              width: 40, height: 4, decoration: BoxDecoration(color: AppColors.borderOf(context), borderRadius: BorderRadius.circular(2)))),
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(20, 8, 12, 16),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border))),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.borderOf(context)))),
             child: Row(children: [
               Container(width: 44, height: 44,
                   decoration: BoxDecoration(gradient: AppGradients.primary, shape: BoxShape.circle),
@@ -1342,9 +1350,9 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${emp['firstName']} ${emp['lastName']}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimaryOf(context))),
                 Text(emp['employeeId'] as String? ?? '',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context))),
               ])),
               if (!_editing)
                 IconButton(icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
@@ -1377,7 +1385,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
                   const SizedBox(height: 14),
                   _Field(ctrl: _desgCtrl, label: 'Designation', icon: Icons.badge_rounded),
                   const SizedBox(height: 14),
-                  const Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimaryOf(context))),
                   const SizedBox(height: 8),
                   Row(children: ['employee', 'manager', 'admin'].map((r) => Expanded(
                     child: Padding(
@@ -1389,13 +1397,13 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
                             gradient: _role == r ? AppGradients.primary : null,
-                            color: _role == r ? null : AppColors.surfaceVariant,
+                            color: _role == r ? null : AppColors.surfaceVarOf(context),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _role == r ? AppColors.primary : AppColors.border, width: _role == r ? 2 : 1.5),
+                            border: Border.all(color: _role == r ? AppColors.primary : AppColors.borderOf(context), width: _role == r ? 2 : 1.5),
                           ),
                           child: Text(r[0].toUpperCase() + r.substring(1), textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                                  color: _role == r ? Colors.white : AppColors.textSecondary)),
+                                  color: _role == r ? Colors.white : AppColors.textSecondaryOf(context))),
                         ),
                       ),
                     ),
@@ -1465,8 +1473,8 @@ class _InfoRow extends StatelessWidget {
           child: Icon(icon, size: 16, color: AppColors.primary)),
       const SizedBox(width: 12),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w500)),
+        Text(value, style: TextStyle(fontSize: 14, color: AppColors.textPrimaryOf(context), fontWeight: FontWeight.w600)),
       ]),
     ]),
   );
@@ -1496,7 +1504,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
     return Column(children: [
       // Date selector
       Container(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         padding: EdgeInsets.symmetric(horizontal: widget.isWide ? 24 : 16, vertical: 12),
         child: Row(children: [
           IconButton(
@@ -1552,7 +1560,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
             return Column(children: [
               // Summary chips
               Container(
-                color: AppColors.surface,
+                color: AppColors.surfaceOf(context),
                 padding: EdgeInsets.symmetric(horizontal: widget.isWide ? 24 : 16, vertical: 10),
                 child: Row(children: [
                   _AttSummaryChip(label: 'Total', value: '${records.length}', color: AppColors.primary),
@@ -1630,7 +1638,7 @@ class _AttendanceRecordTile extends StatelessWidget {
         Container(width: 42, height: 42,
             decoration: BoxDecoration(
                 gradient: checkIn != null ? AppGradients.primary : null,
-                color: checkIn == null ? AppColors.surfaceVariant : null,
+                color: checkIn == null ? AppColors.surfaceVarOf(context) : null,
                 shape: BoxShape.circle),
             child: Center(child: Text(initials,
                 style: TextStyle(color: checkIn != null ? Colors.white : AppColors.textTertiary,
@@ -1638,9 +1646,9 @@ class _AttendanceRecordTile extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimary)),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimaryOf(context))),
           Text(emp['department'] as String? ?? emp['designation'] as String? ?? '',
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context))),
         ])),
         if (checkIn != null) ...[
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -1660,7 +1668,7 @@ class _AttendanceRecordTile extends StatelessWidget {
             if (hours != null) ...[
               const SizedBox(height: 2),
               Text('${double.tryParse(hours.toString())?.toStringAsFixed(1) ?? hours}h',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w600)),
             ],
           ]),
         ] else
@@ -1695,7 +1703,7 @@ class _ClaimsTabState extends ConsumerState<_ClaimsTab> {
     return Column(children: [
       // Filter chips
       Container(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -1741,7 +1749,7 @@ class _ClaimsTabState extends ConsumerState<_ClaimsTab> {
             final pendingClaims = all.where((c) => c['status'] == 'pending').toList();
             return Column(children: [
               if (_filter == 'all') Container(
-                color: AppColors.surface,
+                color: AppColors.surfaceOf(context),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Column(children: [
                   Row(children: [
@@ -1894,8 +1902,8 @@ class _ClaimTileState extends State<_ClaimTile> {
       builder: (_) => AlertDialog(
         title: const Text('Reject Claim'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Provide a reason for rejection (optional):',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          Text('Provide a reason for rejection (optional):',
+              style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13)),
           const SizedBox(height: 12),
           TextField(
             controller: reasonCtrl,
@@ -1971,7 +1979,7 @@ class _ClaimTileState extends State<_ClaimTile> {
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimary)),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimaryOf(context))),
             Row(children: [
               if ((emp['employeeId'] as String? ?? '').isNotEmpty) ...[
                 Container(
@@ -1986,13 +1994,13 @@ class _ClaimTileState extends State<_ClaimTile> {
               ],
               Text(
                 (c['category'] as String? ?? 'general').replaceAll('_', ' '),
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context)),
               ),
             ]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('₹${NumberFormat('#,##0.00').format(amount)}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimaryOf(context))),
             Text(_formatDate(c['expenseDate'] as String? ?? c['createdAt'] as String?),
                 style: const TextStyle(fontSize: 10, color: AppColors.textTertiary)),
           ]),
@@ -2002,7 +2010,7 @@ class _ClaimTileState extends State<_ClaimTile> {
         if ((c['title'] as String? ?? '').isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(c['title'] as String,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
               maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
 
@@ -2088,7 +2096,7 @@ class _TasksTabState extends ConsumerState<_TasksTab> {
     return Column(children: [
       // Filter
       Container(
-        color: AppColors.surface,
+        color: AppColors.surfaceOf(context),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -2219,7 +2227,7 @@ class _AdminTaskTileState extends State<_AdminTaskTile> {
         title: const Text('Reassign Task'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text('Reassign "${task['title']}"',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13)),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
@@ -2328,10 +2336,10 @@ class _AdminTaskTileState extends State<_AdminTaskTile> {
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(task['title'] as String? ?? 'Untitled',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimaryOf(context))),
             if ((task['description'] as String? ?? '').isNotEmpty)
               Text(task['description'] as String,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context)),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
           // Status badge
@@ -2347,7 +2355,7 @@ class _AdminTaskTileState extends State<_AdminTaskTile> {
             const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
           else
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textSecondary),
+              icon: Icon(Icons.more_vert_rounded, size: 18, color: AppColors.textSecondaryOf(context)),
               tooltip: 'Actions',
               onSelected: (v) {
                 if (v == 'reassign') _reassign();
@@ -2378,11 +2386,11 @@ class _AdminTaskTileState extends State<_AdminTaskTile> {
           const SizedBox(height: 10),
           Row(children: [
             if (assignee.isNotEmpty) ...[
-              const Icon(Icons.person_outline, size: 13, color: AppColors.textSecondary),
+              Icon(Icons.person_outline, size: 13, color: AppColors.textSecondaryOf(context)),
               const SizedBox(width: 4),
               Flexible(child: Text(
                 '${assignee['firstName'] ?? ''} ${assignee['lastName'] ?? ''}',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context), fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               )),
               // Employee ID badge
@@ -2400,11 +2408,11 @@ class _AdminTaskTileState extends State<_AdminTaskTile> {
             ],
             if (dueDate != null) ...[
               Icon(Icons.schedule_rounded, size: 13,
-                  color: isOverdue ? AppColors.error : AppColors.textSecondary),
+                  color: isOverdue ? AppColors.error : AppColors.textSecondaryOf(context)),
               const SizedBox(width: 4),
               Text(_fmtDate(dueDate),
                   style: TextStyle(fontSize: 12,
-                      color: isOverdue ? AppColors.error : AppColors.textSecondary,
+                      color: isOverdue ? AppColors.error : AppColors.textSecondaryOf(context),
                       fontWeight: isOverdue ? FontWeight.w700 : FontWeight.w500)),
             ],
             const Spacer(),
@@ -2474,7 +2482,7 @@ class _SectionHeader extends StatelessWidget {
         decoration: BoxDecoration(gradient: AppGradients.primary, borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: Colors.white, size: 14)),
     const SizedBox(width: 10),
-    Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.3)),
+    Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimaryOf(context), letterSpacing: -0.3)),
   ]);
 }
 
@@ -2486,7 +2494,7 @@ class _FormSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppCard(
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.3)),
+      Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondaryOf(context), letterSpacing: 0.3)),
       const SizedBox(height: 16),
       ...children,
     ]),
@@ -2540,9 +2548,9 @@ class _ErrorView extends StatelessWidget {
           decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), shape: BoxShape.circle),
           child: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 32)),
       const SizedBox(height: 16),
-      const Text('Something went wrong', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      Text('Something went wrong', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimaryOf(context))),
       const SizedBox(height: 8),
-      Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary), maxLines: 3, overflow: TextOverflow.ellipsis),
+      Text(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.textSecondaryOf(context)), maxLines: 3, overflow: TextOverflow.ellipsis),
       const SizedBox(height: 20),
       FilledButton.icon(
         onPressed: onRetry,
@@ -2567,9 +2575,9 @@ class _EmptyState extends StatelessWidget {
           decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), shape: BoxShape.circle),
           child: Icon(icon, color: AppColors.primary, size: 36)),
       const SizedBox(height: 16),
-      Text(message, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      Text(message, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimaryOf(context))),
       const SizedBox(height: 6),
-      Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+      Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.textSecondaryOf(context))),
     ]),
   ));
 }

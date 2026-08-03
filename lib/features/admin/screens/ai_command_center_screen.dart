@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/ai_scheduler_service.dart';
@@ -138,20 +139,28 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Row(children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(isDark ? 0.10 : 0.60),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.auroraCyan.withOpacity(0.3),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Semantics(
+                        button: true,
+                        label: 'Back',
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(isDark ? 0.10 : 0.60),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.auroraCyan.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Icon(Icons.arrow_back_rounded,
+                              size: 18,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary),
                         ),
                       ),
-                      child: Icon(Icons.arrow_back_rounded,
-                          size: 18,
-                          color: isDark ? AppColors.primaryLight : AppColors.primary),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -230,6 +239,65 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen>
   }
 }
 
+// ── Shimmer skeleton box (reused across all three tabs) ─────────────────────
+class _ShimmerBox extends StatefulWidget {
+  final double width;
+  final double height;
+  final double radius;
+  const _ShimmerBox({required this.width, required this.height, this.radius = 8});
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05);
+    final hi   = isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.10);
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Container(
+        width: widget.width, height: widget.height,
+        decoration: BoxDecoration(
+          color: Color.lerp(base, hi, _ctrl.value),
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Fade+slide-up stagger for list reveal ───────────────────────────────────
+class _FadeSlideIn extends StatelessWidget {
+  final int index;
+  final Widget child;
+  const _FadeSlideIn({required this.index, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 300 + (index * 60)),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, ch) => Opacity(
+        opacity: v,
+        child: Transform.translate(offset: Offset(0, (1 - v) * 12), child: ch),
+      ),
+      child: child,
+    );
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  TAB 1 — AI TASK AUTO-ASSIGNMENT
 // ══════════════════════════════════════════════════════════════════════════════
@@ -250,6 +318,7 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
   List<AiAssignment> _results = [];
   String? _assignedTo;
   String? _error;
+  bool _noTeam = false;
 
   static const _types = [
     ('task', 'Task', Icons.task_alt_rounded),
@@ -274,13 +343,13 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
 
   Future<void> _findBestAssignee() async {
     if (_taskCtrl.text.trim().isEmpty) return;
-    setState(() { _loading = true; _results = []; _error = null; _assignedTo = null; });
+    setState(() { _loading = true; _results = []; _error = null; _assignedTo = null; _noTeam = false; });
 
     final teamAsync = ref.read(_aiTeamProvider);
     final team = teamAsync.valueOrNull ?? [];
 
     if (team.isEmpty) {
-      setState(() { _loading = false; _error = 'Could not load team data.'; });
+      setState(() { _loading = false; _noTeam = true; });
       return;
     }
 
@@ -438,8 +507,11 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
             // Find button
             SizedBox(
               width: double.infinity,
-              child: GestureDetector(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                 onTap: _loading ? null : _findBestAssignee,
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
@@ -460,6 +532,7 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
                         Text('🎯  Find Best Team Member', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                       ])),
                 ),
+                ),
               ),
             ),
           ]),
@@ -479,6 +552,33 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
               const SizedBox(width: 8),
               Expanded(child: Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.error))),
             ]),
+          ),
+        ],
+
+        if (_noTeam) ...[
+          const SizedBox(height: 16),
+          const _NoTeamEmptyState(),
+        ],
+
+        // ── Ghost skeletons while loading ────────────────────────────────────
+        if (_loading) ...[
+          const SizedBox(height: 16),
+          _GlassCard(
+            isDark: isDark,
+            child: Column(children: List.generate(3, (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(children: [
+                const _ShimmerBox(width: 38, height: 38, radius: 19),
+                const SizedBox(width: 10),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                  _ShimmerBox(width: 120, height: 14),
+                  SizedBox(height: 6),
+                  _ShimmerBox(width: 80, height: 10),
+                ]),
+                const Spacer(),
+                const _ShimmerBox(width: 50, height: 22),
+              ]),
+            ))),
           ),
         ],
 
@@ -506,7 +606,7 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
                         ? AppColors.warning
                         : AppColors.error;
 
-                return Container(
+                return _FadeSlideIn(index: i, child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -636,7 +736,7 @@ class _AutoAssignTabState extends ConsumerState<_AutoAssignTab> {
                       ),
                     ),
                   ]),
-                );
+                ));
               }),
             ]),
           ),
@@ -671,7 +771,7 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
       case 'meeting':  return AppColors.auroraCyan;
       case 'review':   return AppColors.warning;
       case 'break':    return AppColors.success;
-      case 'admin':    return AppColors.textSecondary;
+      case 'admin':    return AppColors.textSecondaryOf(context);
       case 'planning': return AppColors.auroraPink;
       default:         return AppColors.primary;
     }
@@ -739,7 +839,9 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
             teamAsync.when(
               loading: () => const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
               error: (e, _) => Text('Error: $e', style: const TextStyle(color: AppColors.error, fontSize: 12)),
-              data: (team) => Wrap(
+              data: (team) => team.isEmpty
+                ? const _NoTeamEmptyState()
+                : Wrap(
                 spacing: 8, runSpacing: 8,
                 children: team.cast<Map<String, dynamic>>().map((m) {
                   final name = '${m['firstName'] ?? ''} ${m['lastName'] ?? ''}'.trim();
@@ -814,15 +916,18 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
             // Generate button
             SizedBox(
               width: double.infinity,
-              child: GestureDetector(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                 onTap: _loading || _selectedMember == null ? null : _generateSchedule,
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    gradient: (_loading || _selectedMember == null) ? null : LinearGradient(colors: [AppColors.auroraCyan, AppColors.auroraViolet]),
+                    gradient: (_loading || _selectedMember == null) ? null : AppGradients.aurora,
                     color: (_loading || _selectedMember == null) ? Colors.grey.withOpacity(0.25) : null,
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: (_loading || _selectedMember == null) ? null : [BoxShadow(color: AppColors.auroraCyan.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 4))],
+                    boxShadow: (_loading || _selectedMember == null) ? null : AppGlass.violetGlow(intensity: 0.4),
                   ),
                   child: Center(child: _loading
                     ? const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -843,6 +948,7 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
                         ),
                       ])),
                 ),
+                ),
               ),
             ),
           ]),
@@ -851,6 +957,17 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
         if (_error != null) ...[
           const SizedBox(height: 12),
           _ErrorBanner(_error!),
+        ],
+
+        if (_loading) ...[
+          const SizedBox(height: 16),
+          _GlassCard(
+            isDark: isDark,
+            child: Column(children: List.generate(4, (_) => const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: _ShimmerBox(width: double.infinity, height: 60, radius: 12),
+            ))),
+          ),
         ],
 
         // ── Schedule Timeline ────────────────────────────────────────────────
@@ -892,7 +1009,7 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
                 final color = _typeColor(block.type);
                 final isLast = i == _schedule.length - 1;
 
-                return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                return _FadeSlideIn(index: i, child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   // Time column
                   SizedBox(
                     width: 72,
@@ -987,7 +1104,7 @@ class _DailyPlannerTabState extends ConsumerState<_DailyPlannerTab> {
                       ),
                     ),
                   ),
-                ]);
+                ]));
               }),
             ]),
           ),
@@ -1014,6 +1131,7 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
   List<AiAlert> _alerts = [];
   Set<int> _sentAlerts  = {};
   String? _error;
+  bool _allClear = false;
 
   Color _urgencyColor(String u) {
     switch (u) {
@@ -1032,7 +1150,7 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
   }
 
   Future<void> _generateAlerts() async {
-    setState(() { _loading = true; _alerts = []; _sentAlerts = {}; _error = null; });
+    setState(() { _loading = true; _alerts = []; _sentAlerts = {}; _error = null; _allClear = false; });
 
     final teamAsync     = ref.read(_aiTeamProvider);
     final overviewAsync = ref.read(_aiOverviewProvider);
@@ -1040,21 +1158,31 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
     final team     = teamAsync.valueOrNull?.cast<Map<String, dynamic>>() ?? [];
     final overview = overviewAsync.valueOrNull ?? {};
 
-    final alerts = await AiSchedulerService.generateSmartAlerts(
-      teamMembers:      team,
-      totalPendingTasks: (overview['pendingTasks'] as num?)?.toInt() ?? 0,
-      overdueTasks:     (overview['overdueTasks'] as num?)?.toInt() ?? 0,
-      pendingClaims:    (overview['pendingReimbursements'] as num?)?.toInt() ?? 0,
-      absentToday:      (overview['absentToday'] as num?)?.toInt() ?? 0,
-      teamSize:         team.length,
-      upcomingDeadlines: [],
-    );
+    List<AiAlert> alerts = [];
+    Object? failure;
+    try {
+      alerts = await AiSchedulerService.generateSmartAlerts(
+        teamMembers:      team,
+        totalPendingTasks: (overview['pendingTasks'] as num?)?.toInt() ?? 0,
+        overdueTasks:     (overview['overdueTasks'] as num?)?.toInt() ?? 0,
+        pendingClaims:    (overview['pendingReimbursements'] as num?)?.toInt() ?? 0,
+        absentToday:      (overview['absentToday'] as num?)?.toInt() ?? 0,
+        teamSize:         team.length,
+        upcomingDeadlines: [],
+      );
+    } catch (e) {
+      failure = e;
+    }
 
     if (mounted) {
       setState(() {
         _alerts  = alerts;
         _loading = false;
-        if (alerts.isEmpty) _error = 'Could not generate alerts. Check your API key.';
+        if (failure != null) {
+          _error = 'Could not generate alerts. Check your API key.';
+        } else if (alerts.isEmpty) {
+          _allClear = true;
+        }
       });
     }
   }
@@ -1100,15 +1228,18 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
             // Generate button
             SizedBox(
               width: double.infinity,
-              child: GestureDetector(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                 onTap: _loading ? null : _generateAlerts,
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    gradient: _loading ? null : LinearGradient(colors: [AppColors.auroraPink, AppColors.auroraViolet]),
+                    gradient: _loading ? null : AppGradients.aurora,
                     color: _loading ? Colors.grey.withOpacity(0.25) : null,
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: _loading ? null : [BoxShadow(color: AppColors.auroraPink.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 4))],
+                    boxShadow: _loading ? null : AppGlass.violetGlow(intensity: 0.4),
                   ),
                   child: Center(child: _loading
                     ? const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1122,6 +1253,7 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
                         Text(_alerts.isEmpty ? '🔔  Analyse Team & Generate Alerts' : '🔄  Regenerate Alerts',
                           style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                       ])),
+                ),
                 ),
               ),
             ),
@@ -1154,6 +1286,33 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
         if (_error != null) ...[
           const SizedBox(height: 12),
           _ErrorBanner(_error!),
+        ],
+
+        if (_loading) ...[
+          const SizedBox(height: 16),
+          ...List.generate(3, (_) => const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: _ShimmerBox(width: double.infinity, height: 72, radius: 16),
+          )),
+        ],
+
+        if (_allClear) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.success.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.success.withOpacity(0.35)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text('All clear — nothing needs attention today',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimaryOf(context)))),
+            ]),
+          ),
         ],
 
         // ── Alerts List ──────────────────────────────────────────────────────
@@ -1191,7 +1350,7 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
                 final isSent = _sentAlerts.contains(i);
                 final color = _urgencyColor(alert.urgency);
 
-                return Container(
+                return _FadeSlideIn(index: i, child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   child: _GlassCard(
                     isDark: isDark,
@@ -1258,7 +1417,7 @@ class _SmartAlertsTabState extends ConsumerState<_SmartAlertsTab> {
                       ])),
                     ]),
                   ),
-                );
+                ));
               }),
               const SizedBox(height: 8),
             ];
@@ -1340,7 +1499,7 @@ class _CardHeader extends StatelessWidget {
     const SizedBox(width: 12),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-      Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+      Text(subtitle, style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context))),
     ])),
   ]);
 }
@@ -1410,6 +1569,32 @@ class _ErrorBanner extends StatelessWidget {
       const Icon(Icons.error_outline, color: AppColors.error, size: 16),
       const SizedBox(width: 8),
       Expanded(child: Text(message, style: const TextStyle(fontSize: 12, color: AppColors.error))),
+    ]),
+  );
+}
+
+class _NoTeamEmptyState extends StatelessWidget {
+  const _NoTeamEmptyState();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.people_outline, size: 48, color: AppColors.textSecondaryOf(context)),
+      const SizedBox(height: 12),
+      Text('No team members yet',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+              color: AppColors.textPrimaryOf(context))),
+      const SizedBox(height: 6),
+      Text('Add team members from Admin → Team tab first',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context))),
+      const SizedBox(height: 12),
+      FilledButton.tonalIcon(
+        onPressed: () => context.go('/admin'),
+        icon: const Icon(Icons.group_add_rounded, size: 16),
+        label: const Text('Go to Team'),
+      ),
     ]),
   );
 }
