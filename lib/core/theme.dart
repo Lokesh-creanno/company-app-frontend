@@ -330,7 +330,7 @@ class AppTheme {
       ),
 
       // ── Cards ──────────────────────────────────────────────────────────────
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface.withOpacity(isDark ? 0.6 : 0.85),
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -449,7 +449,7 @@ class AppTheme {
         backgroundColor: isDark ? const Color(0xFF1A1A30) : const Color(0xFF1E1B4B),
         contentTextStyle: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         backgroundColor: surface,
         elevation: 0,
@@ -464,7 +464,7 @@ class AppTheme {
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         modalBackgroundColor: surface,
       ),
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
         unselectedLabelColor: textSec,
         indicatorColor: AppColors.primary,
