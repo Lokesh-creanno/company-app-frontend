@@ -1,6 +1,6 @@
 # Build stage — Flutter web
 # Pin to 3.27.4 to avoid API drift on cirruslabs/flutter:stable (3.44+ breaks google_fonts@6.3 + ThemeData accessors).
-FROM ghcr.io/cirruslabs/flutter:3.27.4 AS build
+FROM ghcr.io/cirruslabs/flutter:3.27.3 AS build
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
