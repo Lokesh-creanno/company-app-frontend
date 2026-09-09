@@ -10,7 +10,6 @@ import '../features/tasks/screens/tasks_screen.dart';
 import '../features/tasks/screens/task_detail_screen.dart';
 import '../features/reimbursement/screens/reimbursement_screen.dart';
 import '../features/reimbursement/screens/reimbursement_form_screen.dart';
-import '../features/reimbursement/screens/expense_claim_screen.dart';
 import '../features/reimbursement/screens/reimbursement_detail_screen.dart';
 import '../features/documents/screens/documents_screen.dart';
 import '../features/employees/screens/employees_screen.dart';
@@ -107,7 +106,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ReimbursementScreen(),
             routes: [
               GoRoute(path: 'new', builder: (_, __) => const ReimbursementFormScreen()),
-              GoRoute(path: 'expense-claim', builder: (_, __) => const ExpenseClaimScreen()),
               GoRoute(
                 path: ':id',
                 builder: (_, state) => ReimbursementDetailScreen(

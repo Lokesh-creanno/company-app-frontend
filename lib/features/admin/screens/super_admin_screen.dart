@@ -83,7 +83,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
       if (!mounted) return;
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dctx) => AlertDialog(
           title: const Text('Password'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -97,7 +97,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+            TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Close')),
           ],
         ),
       );
