@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'core/theme.dart';
 import 'core/theme_provider.dart';
 import 'core/router.dart';
@@ -10,6 +11,10 @@ import 'shared/services/error_log_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Use only the bundled Poppins fonts (assets/google_fonts/) — never fetch from
+  // Google servers at runtime. Faster first paint, works offline.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // ── Global Flutter error capture ─────────────────────────────────────────
   // Catches widget build errors, overflow, null pointer, etc.

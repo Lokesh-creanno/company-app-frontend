@@ -100,3 +100,6 @@ flutter:
   assets:
     - assets/CREANNO_Icon.png
     - assets/CREANNO_Logo.png
+    # Bundled Poppins — google_fonts loads these locally instead of fetching from
+    # Google servers at startup (faster first paint, works offline).
+    - assets/google_fonts/

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
@@ -32,31 +31,28 @@ class GlassCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final radius = BorderRadius.circular(borderRadius);
 
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          decoration: AppGlass.decoration(
-            isDark: isDark,
-            opacity: opacity,
-            borderRadius: borderRadius,
-            borderColor: borderColor,
-            shadows: shadows,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: radius,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: radius,
-              splashColor: AppColors.primary.withOpacity(0.08),
-              highlightColor: AppColors.primary.withOpacity(0.04),
-              child: Padding(
-                padding: padding ?? const EdgeInsets.all(16),
-                child: child,
-              ),
-            ),
+    // Flat solid card — no BackdropFilter blur (much cheaper to paint,
+    // especially in scrolling lists on web + low-end Android).
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: AppGlass.decoration(
+        isDark: isDark,
+        opacity: opacity,
+        borderRadius: borderRadius,
+        borderColor: borderColor,
+        shadows: shadows,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          splashColor: AppColors.primary.withOpacity(0.08),
+          highlightColor: AppColors.primary.withOpacity(0.04),
+          child: Padding(
+            padding: padding ?? const EdgeInsets.all(16),
+            child: child,
           ),
         ),
       ),
@@ -94,64 +90,39 @@ class AppCard extends StatelessWidget {
     final borderCol = AppColors.borderOf(context);
     final surfaceCol = AppColors.surfaceOf(context);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: gradient ??
-                (isDark
-                    ? LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.07),
-                          Colors.white.withOpacity(0.03),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : LinearGradient(
-                        colors: [
-                          Colors.white.withOpacity(0.85),
-                          Colors.white.withOpacity(0.60),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )),
-            color: color ?? (gradient != null ? null : surfaceCol.withOpacity(isDark ? 0.55 : 0.80)),
-            borderRadius: BorderRadius.circular(radius),
-            boxShadow: shadows ??
-                [
-                  BoxShadow(
-                      color: AppColors.auroraViolet.withOpacity(isDark ? 0.12 : 0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, 6)),
-                  BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2)),
-                ],
-            border: border ??
-                Border.all(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.10)
-                      : borderCol.withOpacity(0.7),
-                  width: 1.2,
-                ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(radius),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(radius),
-              splashColor: AppColors.primary.withOpacity(0.06),
-              highlightColor: AppColors.primary.withOpacity(0.04),
-              child: Padding(
-                padding: padding ?? const EdgeInsets.all(16),
-                child: child,
-              ),
+    // Flat solid card — no BackdropFilter blur.
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: gradient,
+        color: color ?? (gradient != null ? null : surfaceCol),
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: shadows ??
+            [
+              BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
+            ],
+        border: border ??
+            Border.all(
+              color: isDark
+                  ? Colors.white.withOpacity(0.10)
+                  : borderCol,
+              width: 1,
             ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(radius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(radius),
+          splashColor: AppColors.primary.withOpacity(0.06),
+          highlightColor: AppColors.primary.withOpacity(0.04),
+          child: Padding(
+            padding: padding ?? const EdgeInsets.all(16),
+            child: child,
           ),
         ),
       ),
@@ -226,41 +197,18 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: isDark
-                ? LinearGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.08),
-                      Colors.white.withOpacity(0.03),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : LinearGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.90),
-                      Colors.white.withOpacity(0.65),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+    // Flat solid stat tile — no blur. Keeps the color-tinted border so each
+    // metric still reads at a glance (present=green, absent=red, etc.).
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDark
-                  ? color.withOpacity(0.20)
-                  : color.withOpacity(0.15),
-              width: 1.2,
+              color: color.withOpacity(isDark ? 0.28 : 0.20),
+              width: 1,
             ),
             boxShadow: [
-              BoxShadow(
-                  color: color.withOpacity(isDark ? 0.18 : 0.10),
-                  blurRadius: 24,
-                  offset: const Offset(0, 6)),
               BoxShadow(
                   color: Colors.black.withOpacity(isDark ? 0.22 : 0.04),
                   blurRadius: 8,
@@ -335,8 +283,6 @@ class StatCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -462,41 +408,36 @@ class InfoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withOpacity(0.25), width: 1.2),
+    // Flat banner — no blur (tinted background is cheap and keeps it readable).
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.25), width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: color.withOpacity(0.9),
-                      fontWeight: FontWeight.w500,
-                      height: 1.4),
-                ),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color.withOpacity(0.9),
+                  fontWeight: FontWeight.w500,
+                  height: 1.4),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

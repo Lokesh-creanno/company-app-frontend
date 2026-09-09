@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -263,10 +262,7 @@ class _CalendarTasksAppBar extends StatelessWidget {
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      flexibleSpace: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-          child: Container(
+      flexibleSpace: Container(
             decoration: BoxDecoration(
               gradient: isDark
                   ? LinearGradient(colors: [
@@ -339,11 +335,8 @@ class _CalendarTasksAppBar extends StatelessWidget {
                     // Today shortcut
                     GestureDetector(
                       onTap: () {},
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: Container(
+                      child: Container(
+                            clipBehavior: Clip.antiAlias,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 7),
                             decoration: BoxDecoration(
@@ -362,19 +355,14 @@ class _CalendarTasksAppBar extends StatelessWidget {
                               ),
                             ),
                           ),
-                        ),
-                      ),
                     ),
                     // ✨ AI Timeline button
                     if (onAiTimeline != null) ...[
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: onAiTimeline,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                            child: Container(
+                        child: Container(
+                              clipBehavior: Clip.antiAlias,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 7),
                               decoration: BoxDecoration(
@@ -403,8 +391,6 @@ class _CalendarTasksAppBar extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          ),
-                        ),
                       ),
                     ],
                   ],
@@ -412,8 +398,6 @@ class _CalendarTasksAppBar extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -502,11 +486,8 @@ class _StatChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
+      child: Container(
+            clipBehavior: Clip.antiAlias,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
               color: isDark
@@ -540,8 +521,6 @@ class _StatChip extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -574,11 +553,8 @@ class _MonthCalendarGrid extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
+      child: Container(
+            clipBehavior: Clip.antiAlias,
             decoration: AppGlass.decoration(
               isDark: isDark,
               borderRadius: 24,
@@ -652,8 +628,6 @@ class _MonthCalendarGrid extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -1178,11 +1152,8 @@ class _EmptyDayStateState extends State<_EmptyDayState> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
+    return Container(
+          clipBehavior: Clip.antiAlias,
           padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
           decoration: AppGlass.decoration(isDark: isDark, borderRadius: 20),
           child: Column(
@@ -1320,8 +1291,6 @@ class _EmptyDayStateState extends State<_EmptyDayState> {
               ],
             ],
           ),
-        ),
-      ),
     );
   }
 }
@@ -1340,21 +1309,10 @@ class _TaskEventCard extends StatelessWidget {
         : event.color;
 
     // Staggered reveal based on index (visual delay via opacity)
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
+    return Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            gradient: isDark
-                ? LinearGradient(colors: [
-                    Colors.white.withOpacity(0.07),
-                    Colors.white.withOpacity(0.03),
-                  ])
-                : LinearGradient(colors: [
-                    Colors.white.withOpacity(0.85),
-                    Colors.white.withOpacity(0.60),
-                  ]),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
                 color: isDark
@@ -1551,8 +1509,6 @@ class _TaskEventCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 
@@ -1718,21 +1674,10 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(28)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
+      child: Container(
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              gradient: isDark
-                  ? LinearGradient(colors: [
-                      AppColors.darkSurface.withOpacity(0.95),
-                      AppColors.darkBg.withOpacity(0.90),
-                    ])
-                  : LinearGradient(colors: [
-                      Colors.white.withOpacity(0.96),
-                      AppColors.lightSurfaceVar.withOpacity(0.90),
-                    ]),
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: isDark
@@ -2155,8 +2100,6 @@ class _AddTaskSheetState extends State<_AddTaskSheet> {
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -2251,24 +2194,13 @@ class _AiTimelineSheetState extends State<_AiTimelineSheet> {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(28)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
+      child: Container(
+            clipBehavior: Clip.antiAlias,
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.88,
             ),
             decoration: BoxDecoration(
-              gradient: isDark
-                  ? LinearGradient(colors: [
-                      AppColors.darkSurface.withOpacity(0.97),
-                      AppColors.darkBg.withOpacity(0.93),
-                    ])
-                  : LinearGradient(colors: [
-                      Colors.white.withOpacity(0.97),
-                      AppColors.lightSurfaceVar.withOpacity(0.92),
-                    ]),
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: AppColors.auroraCyan.withOpacity(isDark ? 0.25 : 0.35),
@@ -2526,8 +2458,6 @@ class _AiTimelineSheetState extends State<_AiTimelineSheet> {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 }

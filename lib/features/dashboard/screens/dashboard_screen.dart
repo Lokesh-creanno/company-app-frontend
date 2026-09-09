@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -520,11 +519,8 @@ class _AiInsightsPanelState extends State<_AiInsightsPanel> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
+    return Container(
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             gradient: isDark
                 ? LinearGradient(colors: [
@@ -601,8 +597,6 @@ class _AiInsightsPanelState extends State<_AiInsightsPanel> {
                 }).toList(),
               ),
           ]),
-        ),
-      ),
     );
   }
 }

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,49 +125,28 @@ class _MobileShell extends ConsumerWidget {
         ],
       ),
       drawer: _SideDrawer(user: user),
-      bottomNavigationBar: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: isDark
-                  ? LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.65),
-                        Colors.black.withOpacity(0.50),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    )
-                  : LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.80),
-                        Colors.white.withOpacity(0.65),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-              border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.10)
-                      : AppColors.lightBorder.withOpacity(0.6),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: NavigationBar(
-              selectedIndex: index,
-              onDestinationSelected: (i) => context.go(_tabs[i].path),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              destinations: _tabs.map((tab) => NavigationDestination(
-                icon: Icon(tab.icon),
-                selectedIcon: Icon(tab.activeIcon),
-                label: tab.label,
-              )).toList(),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          border: Border(
+            top: BorderSide(
+              color: isDark
+                  ? Colors.white.withOpacity(0.10)
+                  : AppColors.lightBorder.withOpacity(0.6),
+              width: 1,
             ),
           ),
+        ),
+        child: NavigationBar(
+          selectedIndex: index,
+          onDestinationSelected: (i) => context.go(_tabs[i].path),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          destinations: _tabs.map((tab) => NavigationDestination(
+            icon: Icon(tab.icon),
+            selectedIcon: Icon(tab.activeIcon),
+            label: tab.label,
+          )).toList(),
         ),
       ),
     );
@@ -198,28 +176,9 @@ class _DesktopShell extends ConsumerWidget {
           Row(
             children: [
               // ── Glass Side Nav ────────────────────────────────────────────
-              ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                  child: Container(
+              Container(
                     decoration: BoxDecoration(
-                      gradient: isDark
-                          ? LinearGradient(
-                              colors: [
-                                Colors.black.withOpacity(0.55),
-                                Colors.black.withOpacity(0.35),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            )
-                          : LinearGradient(
-                              colors: [
-                                Colors.white.withOpacity(0.80),
-                                Colors.white.withOpacity(0.55),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       border: Border(
                         right: BorderSide(
                           color: isDark
@@ -306,8 +265,6 @@ class _DesktopShell extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ),
-              ),
 
               // ── Main content area ──────────────────────────────────────────
               Expanded(child: child),
@@ -384,22 +341,11 @@ class _SideNavUserTile extends ConsumerWidget {
     return Padding(
       padding: EdgeInsets.all(extended ? 16 : 8),
       child: extended
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
+          ? Container(
+                  clipBehavior: Clip.antiAlias,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: isDark
-                        ? LinearGradient(colors: [
-                            Colors.white.withOpacity(0.08),
-                            Colors.white.withOpacity(0.04),
-                          ])
-                        : LinearGradient(colors: [
-                            Colors.white.withOpacity(0.75),
-                            Colors.white.withOpacity(0.50),
-                          ]),
+                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isDark
@@ -439,9 +385,7 @@ class _SideNavUserTile extends ConsumerWidget {
                       },
                     ),
                   ]),
-                ),
-              ),
-            )
+                )
           : Column(children: [
               _Avatar(
                   initial: initial,
@@ -508,27 +452,9 @@ class _SideDrawer extends ConsumerWidget {
           borderRadius: BorderRadius.horizontal(right: Radius.circular(24))),
       child: ClipRRect(
         borderRadius: const BorderRadius.horizontal(right: Radius.circular(24)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
+        child: Container(
             decoration: BoxDecoration(
-              gradient: isDark
-                  ? LinearGradient(
-                      colors: [
-                        AppColors.darkSurface.withOpacity(0.92),
-                        AppColors.darkBg.withOpacity(0.85),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.92),
-                        AppColors.lightSurfaceVar.withOpacity(0.85),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
               border: Border(
                 right: BorderSide(
                   color: isDark
@@ -698,7 +624,6 @@ class _SideDrawer extends ConsumerWidget {
             ]),
           ),
         ),
-      ),
     );
   }
 }

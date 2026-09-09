@@ -28,8 +28,10 @@ class UserModel {
   });
 
   String get fullName => '$firstName $lastName';
-  bool get isAdmin => role == 'admin';
-  bool get isManager => role == 'manager' || role == 'admin';
+  bool get isSuperAdmin => role == 'super_admin';
+  bool get isAccounts => role == 'accounts';
+  bool get isAdmin => role == 'admin' || role == 'super_admin';
+  bool get isManager => role == 'manager' || role == 'admin' || role == 'super_admin';
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
     id: json['id'],

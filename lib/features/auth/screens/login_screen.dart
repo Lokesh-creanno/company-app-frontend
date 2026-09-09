@@ -19,8 +19,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   final _formKey   = GlobalKey<FormState>();
   bool _isLoading  = false;
+  bool _obscure    = true;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -39,17 +41,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void dispose() {
     _emailCtrl.dispose();
+    _passwordCtrl.dispose();
     _animCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _sendOTP() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     try {
-      await ref.read(authStateProvider.notifier).sendOTP(_emailCtrl.text.trim());
-      if (mounted) context.push('/otp', extra: _emailCtrl.text.trim());
+      await ref
+          .read(authStateProvider.notifier)
+          .loginWithPassword(_emailCtrl.text.trim(), _passwordCtrl.text);
+      // On success, the router redirect moves us to the right home screen.
     } catch (e) {
       if (mounted) {
         String message;
@@ -60,8 +65,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               e.type == DioExceptionType.sendTimeout) {
             message =
                 '🔌 Backend server is not running.\nPlease start the server first, then try again.';
-          } else if (e.response?.statusCode == 404) {
-            message = 'Email not found. Use your registered company email.';
+          } else if (e.response?.statusCode == 401) {
+            message = 'Wrong email or password. Please try again.';
+          } else if (e.response?.statusCode == 403) {
+            message = e.response?.data?['message'] ?? 'This account is archived.';
           } else if (e.response?.statusCode != null) {
             message =
                 e.response?.data?['message'] ?? 'Server error. Please try again.';
@@ -338,8 +345,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _sendOTP(),
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
                   style: TextStyle(color: AppColors.textPrimaryOf(context)),
                   decoration: InputDecoration(
                     hintText: 'you@company.com',
@@ -360,21 +367,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     return null;
                   },
                 ),
+                const SizedBox(height: 18),
+
+                // Password label
+                Text(
+                  'Password',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryOf(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Password field
+                TextFormField(
+                  controller: _passwordCtrl,
+                  obscureText: _obscure,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _login(),
+                  style: TextStyle(color: AppColors.textPrimaryOf(context)),
+                  decoration: InputDecoration(
+                    hintText: '••••••••',
+                    prefixIcon: Container(
+                      margin: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          gradient: AppGradients.primary,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.lock_rounded,
+                          color: Colors.white, size: 16),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                          size: 20),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Please enter your password' : null,
+                ),
                 const SizedBox(height: 28),
 
-                // Send OTP button
+                // Sign in button
                 GradientButton(
-                  label: 'Send OTP',
-                  onPressed: _isLoading ? null : _sendOTP,
+                  label: 'Sign In',
+                  onPressed: _isLoading ? null : _login,
                   isLoading: _isLoading,
-                  icon: Icons.send_rounded,
+                  icon: Icons.login_rounded,
                 ),
                 const SizedBox(height: 24),
 
                 // Info banner
                 InfoBanner(
                   message:
-                      'A one-time password will be sent to your registered email. No password required.',
+                      'Use the email and password given to you by your super admin.',
                   icon: Icons.shield_rounded,
                   color: AppColors.primary,
                 ),

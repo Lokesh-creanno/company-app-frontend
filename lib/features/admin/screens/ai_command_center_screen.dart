@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -112,10 +111,7 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen>
   }
 
   Widget _buildHeader(bool isDark) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
+    return Container(
           decoration: BoxDecoration(
             gradient: isDark
                 ? LinearGradient(colors: [
@@ -233,8 +229,6 @@ class _AiCommandCenterScreenState extends ConsumerState<AiCommandCenterScreen>
               const SizedBox(height: 4),
             ]),
           ),
-        ),
-      ),
     );
   }
 }
@@ -1456,16 +1450,11 @@ class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child, required this.isDark, this.padding});
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(20),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-      child: Container(
+  Widget build(BuildContext context) => Container(
+        clipBehavior: Clip.antiAlias,
         padding: padding ?? const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          gradient: isDark
-              ? LinearGradient(colors: [Colors.white.withOpacity(0.07), Colors.white.withOpacity(0.03)])
-              : LinearGradient(colors: [Colors.white.withOpacity(0.88), Colors.white.withOpacity(0.65)]),
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDark ? Colors.white.withOpacity(0.10) : AppColors.lightBorder.withOpacity(0.5),
@@ -1473,9 +1462,7 @@ class _GlassCard extends StatelessWidget {
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 20, offset: const Offset(0, 6))],
         ),
         child: child,
-      ),
-    ),
-  );
+      );
 }
 
 class _CardHeader extends StatelessWidget {

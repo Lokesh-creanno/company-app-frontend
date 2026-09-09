@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
+import '../features/admin/screens/super_admin_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/attendance/screens/attendance_screen.dart';
 import '../features/tasks/screens/tasks_screen.dart';
@@ -36,29 +36,32 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    // Web demo lands directly on Admin Panel; mobile starts at login
-    initialLocation: kIsWeb ? '/admin' : '/login',
+    initialLocation: '/login',
     refreshListenable: notifier,
     redirect: (context, state) {
-      // Web demo mode: never redirect, never gate routes
-      if (kIsWeb) {
-        final loc = state.matchedLocation;
-        // If a deep-link sends to /login or /otp on web, send them to admin
-        if (loc.startsWith('/login') || loc.startsWith('/otp')) return '/admin';
-        return null;
-      }
-
       final authState = ref.read(authStateProvider);
       if (authState.isLoading) return null;
 
-      final isLoggedIn = authState.valueOrNull != null;
+      final user = authState.valueOrNull;
+      final isLoggedIn = user != null;
       final loc = state.matchedLocation;
       final isAuthRoute = loc.startsWith('/login') || loc.startsWith('/otp');
 
+      // Not logged in → login screen.
       if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/dashboard';
+
+      // Logged in but on an auth screen → send to their home.
+      if (isLoggedIn && isAuthRoute) {
+        return user.isSuperAdmin ? '/super-admin' : '/dashboard';
+      }
+
+      // Super-admin area is super_admin only.
+      if (loc.startsWith('/super-admin')) {
+        if (user == null || !user.isSuperAdmin) return '/dashboard';
+      }
+
+      // Admin area: admin / manager / super_admin only.
       if (loc.startsWith('/admin')) {
-        final user = authState.valueOrNull;
         if (user == null || (!user.isAdmin && !user.isManager)) return '/dashboard';
       }
       return null;
@@ -69,6 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/otp',
         builder: (_, state) => OTPScreen(email: state.extra as String),
       ),
+      GoRoute(path: '/super-admin', builder: (_, __) => const SuperAdminScreen()),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (_, __, child) => MainShell(child: child),

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/services/error_log_service.dart';
@@ -47,10 +46,7 @@ class ErrorConsoleScreen extends ConsumerWidget {
 
         Column(children: [
           // Header
-          ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
+          Container(
                 decoration: BoxDecoration(
                   gradient: isDark
                       ? LinearGradient(colors: [AppColors.error.withOpacity(0.20), AppColors.warning.withOpacity(0.10)])
@@ -119,8 +115,6 @@ class ErrorConsoleScreen extends ConsumerWidget {
                   ]),
                 )),
               ),
-            ),
-          ),
 
           // Body
           Expanded(child: errAsync.when(
@@ -181,11 +175,8 @@ class _SummaryRow extends StatelessWidget {
     final cats = <String, int>{};
     for (final e in errors) cats[e.category] = (cats[e.category] ?? 0) + 1;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
+    return Container(
+          clipBehavior: Clip.antiAlias,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: isDark
@@ -216,8 +207,6 @@ class _SummaryRow extends StatelessWidget {
               )).toList()),
             ],
           ]),
-        ),
-      ),
     );
   }
 }
@@ -292,15 +281,10 @@ class _ErrorCardState extends State<_ErrorCard> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
+      child: Container(
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              gradient: isDark
-                  ? LinearGradient(colors: [Colors.white.withOpacity(0.06), Colors.white.withOpacity(0.02)])
-                  : LinearGradient(colors: [Colors.white.withOpacity(0.90), Colors.white.withOpacity(0.70)]),
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isResolved
@@ -462,8 +446,6 @@ class _ErrorCardState extends State<_ErrorCard> {
               ],
             ]),
           ),
-        ),
-      ),
     );
   }
 }

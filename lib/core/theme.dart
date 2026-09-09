@@ -86,16 +86,16 @@ class AppColors {
 //  GRADIENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 class AppGradients {
-  // Aurora hero — used in headers, login panel, admin header
+  // Flattened to a single solid brand color (no multi-color sweep). Kept as a
+  // LinearGradient with two identical stops so all call sites keep working.
   static const hero = LinearGradient(
-    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED), Color(0xFFEC4899)],
+    colors: [Color(0xFF7C3AED), Color(0xFF7C3AED)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    stops: [0.0, 0.5, 1.0],
   );
 
   static const primary = LinearGradient(
-    colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)],
+    colors: [Color(0xFF7C3AED), Color(0xFF7C3AED)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -106,12 +106,8 @@ class AppGradients {
     end: Alignment.bottomRight,
   );
 
-  static const aurora = LinearGradient(
-    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED), Color(0xFF06B6D4), Color(0xFFEC4899)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    stops: [0.0, 0.33, 0.66, 1.0],
-  );
+  // Simplified: reuse the 2-stop hero instead of a busy 4-color sweep.
+  static const aurora = hero;
 
   // Glass surface gradients
   static LinearGradient glassLight = LinearGradient(
@@ -150,7 +146,10 @@ class AppGradients {
 //  GLASS STYLE HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 class AppGlass {
-  /// Standard glass box decoration — use inside BackdropFilter
+  /// Flat solid card decoration. Kept the old name/signature so all call sites
+  /// (185 of them across 13 screens) keep working — but now renders an opaque,
+  /// blur-free surface: faster to paint on web + Android, cleaner to read.
+  /// `opacity` is accepted for compatibility and ignored (surfaces are opaque).
   static BoxDecoration decoration({
     bool isDark = false,
     double opacity = 1.0,
@@ -158,60 +157,31 @@ class AppGlass {
     Color? borderColor,
     List<BoxShadow>? shadows,
   }) {
+    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final border  = isDark ? AppColors.darkBorder  : AppColors.lightBorder;
     return BoxDecoration(
-      gradient: isDark
-          ? LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.07 * opacity),
-                Colors.white.withOpacity(0.03 * opacity),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
-          : LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.80 * opacity),
-                Colors.white.withOpacity(0.55 * opacity),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+      color: surface,
       borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: borderColor ??
-            (isDark
-                ? Colors.white.withOpacity(0.12)
-                : Colors.white.withOpacity(0.6)),
-        width: 1.2,
-      ),
+      border: Border.all(color: borderColor ?? border, width: 1),
       boxShadow: shadows ??
-          (isDark
-              ? [
-                  BoxShadow(color: AppColors.auroraViolet.withOpacity(0.15), blurRadius: 32, offset: const Offset(0, 8)),
-                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4)),
-                ]
-              : [
-                  BoxShadow(color: AppColors.auroraViolet.withOpacity(0.10), blurRadius: 24, offset: const Offset(0, 6)),
-                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2)),
-                ]),
+          [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
     );
   }
 
-  /// Violet glow shadow for buttons / heroes
-  static List<BoxShadow> violetGlow({double intensity = 0.45}) => [
-    BoxShadow(color: AppColors.auroraViolet.withOpacity(intensity), blurRadius: 28, offset: const Offset(0, 8)),
-    BoxShadow(color: AppColors.auroraViolet.withOpacity(intensity * 0.5), blurRadius: 8, offset: const Offset(0, 2)),
+  // Colored "glows" flattened to one subtle neutral shadow — same call sites,
+  // no more expensive colored blur halos.
+  static final List<BoxShadow> _soft = [
+    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 3)),
   ];
-
-  static List<BoxShadow> cyanGlow({double intensity = 0.4}) => [
-    BoxShadow(color: AppColors.auroraCyan.withOpacity(intensity), blurRadius: 28, offset: const Offset(0, 8)),
-    BoxShadow(color: AppColors.auroraCyan.withOpacity(intensity * 0.4), blurRadius: 8, offset: const Offset(0, 2)),
-  ];
-
-  static List<BoxShadow> pinkGlow({double intensity = 0.35}) => [
-    BoxShadow(color: AppColors.auroraPink.withOpacity(intensity), blurRadius: 28, offset: const Offset(0, 8)),
-    BoxShadow(color: AppColors.auroraPink.withOpacity(intensity * 0.4), blurRadius: 8, offset: const Offset(0, 2)),
-  ];
+  static List<BoxShadow> violetGlow({double intensity = 0.45}) => _soft;
+  static List<BoxShadow> cyanGlow({double intensity = 0.4}) => _soft;
+  static List<BoxShadow> pinkGlow({double intensity = 0.35}) => _soft;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -223,9 +193,9 @@ class AppShadows {
     const BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 1)),
   ];
 
+  // Flattened: one subtle neutral shadow regardless of color (kept signature).
   static List<BoxShadow> glow(Color color, {double intensity = 0.35}) => [
-    BoxShadow(color: color.withOpacity(intensity), blurRadius: 28, offset: const Offset(0, 8)),
-    BoxShadow(color: color.withOpacity(intensity * 0.4), blurRadius: 8, offset: const Offset(0, 2)),
+    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 3)),
   ];
 
   static List<BoxShadow> primaryGlow = glow(AppColors.primary);
@@ -331,7 +301,7 @@ class AppTheme {
 
       // ── Cards ──────────────────────────────────────────────────────────────
       cardTheme: CardTheme(
-        color: surface.withOpacity(isDark ? 0.6 : 0.85),
+        color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
