@@ -71,6 +71,13 @@ class ApiService {
   Future<Response> get(String path, {Map<String, dynamic>? params}) =>
       _dio.get(path, queryParameters: params);
 
+  // Fetch raw bytes (for Excel/PDF downloads).
+  Future<List<int>> getBytes(String path, {Map<String, dynamic>? params}) async {
+    final r = await _dio.get<List<int>>(path,
+        queryParameters: params, options: Options(responseType: ResponseType.bytes));
+    return r.data ?? <int>[];
+  }
+
   Future<Response> post(String path, {dynamic data, Map<String, dynamic>? params}) =>
       _dio.post(path, data: data, queryParameters: params);
 

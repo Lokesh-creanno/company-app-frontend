@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/download_service.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../core/theme.dart';
 
@@ -21,6 +22,24 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   bool _checkingIn = false;
   bool _checkingOut = false;
+  bool _downloading = false;
+
+  Future<void> _downloadMonth() async {
+    setState(() => _downloading = true);
+    try {
+      final now = DateTime.now();
+      final bytes = await api.getBytes('/attendance/my/export',
+          params: {'month': now.month.toString(), 'year': now.year.toString()});
+      await saveFile(bytes, 'my_attendance_${now.year}-${now.month.toString().padLeft(2, '0')}.xlsx');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Download failed: $e'), backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
 
   // Returns lat/lng — null on Windows/Web where GPS is unavailable
   Future<Map<String, double?>?> _getLocation() async {
@@ -75,6 +94,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Attendance'), actions: [
+        IconButton(
+          tooltip: 'Download this month (Excel)',
+          icon: _downloading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.download_rounded),
+          onPressed: _downloading ? null : _downloadMonth,
+        ),
         IconButton(icon: const Icon(Icons.refresh), onPressed: () => ref.invalidate(attendanceProvider)),
       ]),
       body: attendanceAsync.when(
@@ -88,9 +114,20 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             orElse: () => null,
           );
 
+          final markedToday = today != null && today['checkInTime'] != null;
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Daily reminder — shown until today's attendance is marked
+              if (!markedToday) ...[
+                const InfoBanner(
+                  message: 'You haven\'t marked attendance today. Tap "Check In" below.',
+                  icon: Icons.notifications_active_rounded,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(height: 16),
+              ],
               // Summary cards
               Row(children: [
                 Expanded(child: StatCard(title: 'Present', value: '${summary['present'] ?? 0}', icon: Icons.check_circle, color: AppColors.success)),

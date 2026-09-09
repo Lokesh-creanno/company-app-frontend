@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import '../../core/theme.dart';
 import '../../core/theme_provider.dart';
 import 'creanno_logo.dart';
@@ -23,9 +26,49 @@ const _tabs = [
 ];
 
 // ─── Main Shell ───────────────────────────────────────────────────────────────
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
+  @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _remindAttendance());
+  }
+
+  // Once per calendar day, if today's attendance isn't marked, nudge the user.
+  Future<void> _remindAttendance() async {
+    try {
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      const key = 'attn_reminder_shown';
+      if (await StorageService.read(key: key) == today) return; // already nudged today
+      await StorageService.write(key: key, value: today);
+
+      final now = DateTime.now();
+      final resp = await api.get('/attendance/my',
+          params: {'month': now.month.toString(), 'year': now.year.toString()});
+      final records = (resp.data['data']?['records'] as List?) ?? [];
+      final marked = records.any((r) => r['date'] == today && r['checkInTime'] != null);
+      if (marked || !mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Reminder: mark your attendance for today'),
+        backgroundColor: AppColors.primary,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'MARK',
+          textColor: Colors.white,
+          onPressed: () => context.go('/attendance'),
+        ),
+      ));
+    } catch (_) {
+      // Silent — a failed reminder must never block the app.
+    }
+  }
 
   int _currentIndex(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
@@ -36,7 +79,8 @@ class MainShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final child = widget.child;
     final user  = ref.watch(authStateProvider).value;
     final index = _currentIndex(context);
 
