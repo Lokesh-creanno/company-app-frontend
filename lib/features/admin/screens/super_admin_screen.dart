@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/location_service.dart';
 import '../../auth/providers/auth_provider.dart';
 
 // Super Admin control center: create / list / view-password / archive users.
@@ -114,6 +115,71 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
     if (changed == true) _load();
   }
 
+  // Set the office geofence — grabs current GPS, lets you tweak, saves radius.
+  Future<void> _setOffice() async {
+    Map<String, dynamic>? current;
+    try { current = (await api.get('/attendance/office-config')).data['data'] as Map<String, dynamic>?; } catch (_) {}
+    final latC = TextEditingController(text: current?['lat']?.toString() ?? '');
+    final lngC = TextEditingController(text: current?['lng']?.toString() ?? '');
+    final radC = TextEditingController(text: (current?['radius'] ?? 150).toString());
+    final labC = TextEditingController(text: current?['label']?.toString() ?? 'Office');
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (dctx) => StatefulBuilder(builder: (dctx, setD) {
+        bool locating = false;
+        return AlertDialog(
+          title: const Text('Office location'),
+          content: SizedBox(
+            width: 360,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              OutlinedButton.icon(
+                onPressed: locating ? null : () async {
+                  setD(() => locating = true);
+                  final loc = await LocationService.current();
+                  if (loc.ok) { latC.text = loc.lat!.toStringAsFixed(6); lngC.text = loc.lng!.toStringAsFixed(6); }
+                  else if (dctx.mounted) ScaffoldMessenger.of(dctx).showSnackBar(SnackBar(content: Text(loc.error ?? 'No location')));
+                  setD(() => locating = false);
+                },
+                icon: const Icon(Icons.my_location_rounded),
+                label: Text(locating ? 'Getting location…' : 'Use my current location'),
+              ),
+              const SizedBox(height: 8),
+              TextField(controller: labC, decoration: const InputDecoration(labelText: 'Label')),
+              Row(children: [
+                Expanded(child: TextField(controller: latC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Latitude'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: lngC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Longitude'))),
+              ]),
+              TextField(controller: radC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Radius (metres)')),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final lat = double.tryParse(latC.text.trim());
+                final lng = double.tryParse(lngC.text.trim());
+                if (lat == null || lng == null) return;
+                try {
+                  await api.put('/attendance/office-config', data: {
+                    'lat': lat, 'lng': lng,
+                    'radius': int.tryParse(radC.text.trim()) ?? 150,
+                    'label': labC.text.trim(),
+                  });
+                  if (dctx.mounted) Navigator.pop(dctx);
+                  _toast('Office location saved');
+                } catch (e) { _toast(_msg(e), ok: false); }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = ref.watch(authStateProvider).valueOrNull;
@@ -121,6 +187,11 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
       appBar: AppBar(
         title: const Text('Super Admin'),
         actions: [
+          IconButton(
+            tooltip: 'Set office location',
+            icon: const Icon(Icons.location_on_rounded),
+            onPressed: _setOffice,
+          ),
           IconButton(
             tooltip: _includeArchived ? 'Hide archived' : 'Show archived',
             icon: Icon(_includeArchived ? Icons.visibility_off_rounded : Icons.archive_rounded),

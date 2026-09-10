@@ -1,9 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/download_service.dart';
+import '../../../shared/services/location_service.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../core/theme.dart';
 
@@ -41,26 +43,59 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  // Returns lat/lng — null on Windows/Web where GPS is unavailable
-  Future<Map<String, double?>?> _getLocation() async {
-    return null; // GPS not available on desktop — backend accepts null coordinates
+  String _apiMsg(Object e) => e is DioException
+      ? (e.response?.data?['message']?.toString() ?? 'Cannot reach server')
+      : e.toString();
+
+  void _snack(String m, {bool ok = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(m), backgroundColor: ok ? AppColors.success : AppColors.error));
   }
 
-  Future<void> _checkIn() async {
+  Future<String?> _askNote() async {
+    final c = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Field check-in'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Where are you? (e.g. client site, Noida)'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, null), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dctx, c.text.trim()), child: const Text('Check in')),
+        ],
+      ),
+    );
+  }
+
+  // mode: 'office' (must be inside geofence) or 'field' (anywhere, with a note)
+  Future<void> _checkIn({required String mode}) async {
+    String? note;
+    if (mode == 'field') {
+      note = await _askNote();
+      if (note == null) return; // cancelled
+    }
     setState(() => _checkingIn = true);
     try {
-      final pos = await _getLocation();
-      // Send localDate so backend uses device's date, not server UTC date
-      final localDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      await api.post('/attendance/check-in', data: {
-        'lat': pos?['lat'],
-        'lng': pos?['lng'],
-        'localDate': localDate,
+      final loc = await LocationService.current();
+      if (mode == 'office' && !loc.ok) {
+        _snack(loc.error ?? 'Location needed for office check-in.');
+        return;
+      }
+      final now = DateTime.now();
+      final res = await api.post('/attendance/check-in', data: {
+        'lat': loc.lat, 'lng': loc.lng, 'mode': mode, 'note': note,
+        'localDate': DateFormat('yyyy-MM-dd').format(now),
+        'localHour': now.hour, 'localMinute': now.minute,
       });
       ref.invalidate(attendanceProvider);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checked in successfully! ✓'), backgroundColor: AppColors.success));
+      _snack(res.data['message']?.toString() ?? 'Checked in ✓', ok: true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      _snack(_apiMsg(e));
     } finally {
       if (mounted) setState(() => _checkingIn = false);
     }
@@ -69,19 +104,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Future<void> _checkOut() async {
     setState(() => _checkingOut = true);
     try {
-      final pos = await _getLocation();
-      // Send localDate so backend matches today's check-in record correctly
-      final localDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final loc = await LocationService.current(); // best-effort; checkout allowed without it
       final response = await api.post('/attendance/check-out', data: {
-        'lat': pos?['lat'],
-        'lng': pos?['lng'],
-        'localDate': localDate,
+        'lat': loc.lat,
+        'lng': loc.lng,
+        'localDate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
       });
       ref.invalidate(attendanceProvider);
       final hours = response.data['data']['workingHours'];
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Checked out! Working hours: ${hours}h ✓'), backgroundColor: AppColors.success));
+      _snack('Checked out! Working hours: ${hours}h ✓', ok: true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error));
+      _snack(_apiMsg(e));
     } finally {
       if (mounted) setState(() => _checkingOut = false);
     }
@@ -140,36 +173,69 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               // Check-in/out buttons
               AppCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Today, ${DateFormat('d MMMM yyyy').format(now)}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    Text('Today, ${DateFormat('d MMMM yyyy').format(now)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
+
+                    if (!markedToday) ...[
+                      // Two ways to mark: Office (must be inside geofence) or Field (anywhere).
+                      Row(children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: (today != null && today['checkInTime'] != null) || _checkingIn ? null : _checkIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                              disabledBackgroundColor: AppColors.success.withOpacity(0.4),
-                            ),
-                            icon: _checkingIn ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.login, size: 18),
-                            label: Text(today?['checkInTime'] != null ? 'Checked In ${DateFormat('hh:mm a').format(DateTime.parse(today['checkInTime']).toLocal())}' : 'Check In'),
+                            onPressed: _checkingIn ? null : () => _checkIn(mode: 'office'),
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+                            icon: _checkingIn
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.business_rounded, size: 18),
+                            label: const Text('Office'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: (today == null || today['checkInTime'] == null || today['checkOutTime'] != null) || _checkingOut ? null : _checkOut,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.error,
-                              disabledBackgroundColor: AppColors.error.withOpacity(0.4),
-                            ),
-                            icon: _checkingOut ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.logout, size: 18),
-                            label: Text(today?['checkOutTime'] != null ? 'Checked Out ${DateFormat('hh:mm a').format(DateTime.parse(today['checkOutTime']).toLocal())}' : 'Check Out'),
+                            onPressed: _checkingIn ? null : () => _checkIn(mode: 'field'),
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+                            icon: const Icon(Icons.travel_explore_rounded, size: 18),
+                            label: const Text('Field'),
                           ),
                         ),
-                      ],
-                    ),
+                      ]),
+                      const SizedBox(height: 8),
+                      const Text('Office needs you inside the office area. Field works anywhere.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
+                    ] else ...[
+                      // Checked in — show time, late/field tag, and Check Out.
+                      Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 6, children: [
+                        StatusBadge(
+                          label: 'In ${DateFormat('hh:mm a').format(DateTime.parse(today['checkInTime']).toLocal())}',
+                          color: AppColors.success),
+                        if (today['mode'] == 'field') const StatusBadge(label: 'FIELD', color: AppColors.secondary),
+                        if (today['isLate'] == true)
+                          const StatusBadge(label: 'LATE', color: AppColors.warning)
+                        else
+                          const StatusBadge(label: 'ON TIME', color: AppColors.success),
+                        if (today['checkOutTime'] != null)
+                          StatusBadge(
+                            label: 'Out ${DateFormat('hh:mm a').format(DateTime.parse(today['checkOutTime']).toLocal())}',
+                            color: AppColors.error),
+                      ]),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        onPressed: (today['checkOutTime'] != null || _checkingOut) ? null : _checkOut,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          disabledBackgroundColor: AppColors.error.withOpacity(0.4),
+                        ),
+                        icon: _checkingOut
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.logout, size: 18),
+                        label: Text(today['checkOutTime'] != null ? 'Checked out' : 'Check Out'),
+                      ),
+                    ],
                   ],
                 ),
               ),

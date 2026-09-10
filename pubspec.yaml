@@ -63,8 +63,8 @@ dependencies:
   # Charts & Analytics
   fl_chart: ^0.67.0
 
-  # Location (mobile only — stubbed on Windows/Web)
-  # geolocator: ^11.0.0
+  # Location — used for attendance geofencing (web needs HTTPS; Android needs permission)
+  geolocator: ^11.0.0
 
   # Biometrics (mobile only — not supported on Windows desktop)
   # local_auth: ^2.1.7

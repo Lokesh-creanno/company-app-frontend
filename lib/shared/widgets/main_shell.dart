@@ -40,31 +40,40 @@ class _MainShellState extends ConsumerState<MainShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _remindAttendance());
   }
 
-  // Once per calendar day, if today's attendance isn't marked, nudge the user.
+  // On app open: nudge to check IN (morning) or, after 6 pm, to check OUT.
+  // Each nudge fires at most once per calendar day.
   Future<void> _remindAttendance() async {
     try {
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      const key = 'attn_reminder_shown';
-      if (await StorageService.read(key: key) == today) return; // already nudged today
-      await StorageService.write(key: key, value: today);
-
       final now = DateTime.now();
+      final today = DateFormat('yyyy-MM-dd').format(now);
       final resp = await api.get('/attendance/my',
           params: {'month': now.month.toString(), 'year': now.year.toString()});
       final records = (resp.data['data']?['records'] as List?) ?? [];
-      final marked = records.any((r) => r['date'] == today && r['checkInTime'] != null);
-      if (marked || !mounted) return;
+      final rec = records.firstWhere((r) => r['date'] == today, orElse: () => null);
+      final checkedIn = rec != null && rec['checkInTime'] != null;
+      final checkedOut = rec != null && rec['checkOutTime'] != null;
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Reminder: mark your attendance for today'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(
-          label: 'MARK',
-          textColor: Colors.white,
-          onPressed: () => context.go('/attendance'),
-        ),
-      ));
+      void nudge(String msg, String label) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(label: label, textColor: Colors.white, onPressed: () => context.go('/attendance')),
+        ));
+      }
+
+      if (!checkedIn) {
+        if (await StorageService.read(key: 'attn_in_$today') == null) {
+          await StorageService.write(key: 'attn_in_$today', value: '1');
+          nudge('Reminder: mark your attendance for today', 'MARK');
+        }
+      } else if (!checkedOut && now.hour >= 18) {
+        if (await StorageService.read(key: 'attn_out_$today') == null) {
+          await StorageService.write(key: 'attn_out_$today', value: '1');
+          nudge("It's past 6 pm — don't forget to check out", 'CHECK OUT');
+        }
+      }
     } catch (_) {
       // Silent — a failed reminder must never block the app.
     }
