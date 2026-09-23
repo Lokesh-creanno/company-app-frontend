@@ -52,6 +52,12 @@ class _ReimbursementScreenState extends ConsumerState<ReimbursementScreen> {
       appBar: AppBar(
         title: Text(mode == 'queue' ? 'Claims to review' : 'My reimbursements'),
         actions: [
+          if (user != null && user.isSuperAdmin)
+            IconButton(
+              tooltip: 'Super Admin panel',
+              icon: const Icon(Icons.admin_panel_settings_rounded),
+              onPressed: () => context.go('/super-admin'),
+            ),
           if (isApprover)
             IconButton(
               tooltip: 'Export all (Excel)',

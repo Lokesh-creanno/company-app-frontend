@@ -188,6 +188,11 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
         title: const Text('Super Admin'),
         actions: [
           IconButton(
+            tooltip: 'Claims to approve',
+            icon: const Icon(Icons.receipt_long_rounded),
+            onPressed: () => context.go('/reimbursements'),
+          ),
+          IconButton(
             tooltip: 'Set office location',
             icon: const Icon(Icons.location_on_rounded),
             onPressed: _setOffice,
