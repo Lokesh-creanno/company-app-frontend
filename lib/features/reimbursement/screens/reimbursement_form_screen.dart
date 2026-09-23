@@ -243,22 +243,42 @@ class _LineCard extends StatelessWidget {
               ),
           ]),
           const SizedBox(height: 6),
-          Row(children: [
-            Expanded(child: _tf(line.category, 'Category (e.g. Travel)')),
-            const SizedBox(width: 10),
-            Expanded(child: _tf(line.head, 'Expense head *')),
-          ]),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(flex: 2, child: _tf(line.remarks, 'Remarks')),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _tf(line.amount, 'Amount *',
-                  keyboard: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => onChanged(),
-                  formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]),
-            ),
-          ]),
+          // Phones get one field per row (side-by-side truncates the labels).
+          LayoutBuilder(builder: (context, c) {
+            final narrow = c.maxWidth < 420;
+            final category = _tf(line.category, 'Category');
+            final head = _tf(line.head, 'Expense head *');
+            final remarks = _tf(line.remarks, 'Remarks');
+            final amount = _tf(line.amount, 'Amount *',
+                keyboard: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => onChanged(),
+                formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]);
+
+            if (narrow) {
+              return Column(children: [
+                category,
+                const SizedBox(height: 10),
+                head,
+                const SizedBox(height: 10),
+                remarks,
+                const SizedBox(height: 10),
+                amount,
+              ]);
+            }
+            return Column(children: [
+              Row(children: [
+                Expanded(child: category),
+                const SizedBox(width: 10),
+                Expanded(child: head),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(flex: 2, child: remarks),
+                const SizedBox(width: 10),
+                Expanded(child: amount),
+              ]),
+            ]);
+          }),
         ],
       ),
     );

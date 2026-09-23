@@ -132,7 +132,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
         return AlertDialog(
           title: const Text('Office location'),
           content: SizedBox(
-            width: 360,
+            width: MediaQuery.of(dctx).size.width.clamp(0.0, 380.0) - 48,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               OutlinedButton.icon(
                 onPressed: locating ? null : () async {
@@ -470,7 +470,8 @@ class _UserFormDialogState extends State<_UserFormDialog> {
     return AlertDialog(
       title: Text(_isEdit ? 'Edit user' : 'New user'),
       content: SizedBox(
-        width: 380,
+        // Never wider than the phone screen (a fixed 380 overflows on small phones).
+        width: MediaQuery.of(context).size.width.clamp(0.0, 380.0) - 48,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

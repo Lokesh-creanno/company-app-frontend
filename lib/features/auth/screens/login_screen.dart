@@ -20,6 +20,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  // Explicit focus target: plain nextFocus() lands on the show-password icon
+  // button instead of the password field.
+  final _passwordFocus = FocusNode();
   final _formKey   = GlobalKey<FormState>();
   bool _isLoading  = false;
   bool _obscure    = true;
@@ -42,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _passwordFocus.dispose();
     _animCtrl.dispose();
     super.dispose();
   }
@@ -153,24 +157,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildNarrowLayout() {
-    return Column(
-      children: [
-        // Top: brand header
-        _buildMobileHeader(),
-        // Bottom: glass form panel
-        Expanded(
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: SingleChildScrollView(
+    // Whole page scrolls (header included) so the keyboard never hides the
+    // password field or the Sign In button on a phone.
+    final keyboard = MediaQuery.of(context).viewInsets.bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: FadeTransition(
+        opacity: _fadeAnim,
+        child: SlideTransition(
+          position: _slideAnim,
+          child: Column(
+            children: [
+              // Header shrinks away once the keyboard is up, freeing room.
+              if (keyboard == 0) _buildMobileHeader() else const SizedBox(height: 16),
+              Padding(
                 padding: const EdgeInsets.all(24),
                 child: _buildGlassForm(),
               ),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -346,7 +353,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                  onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
                   style: TextStyle(color: AppColors.textPrimaryOf(context)),
                   decoration: InputDecoration(
                     hintText: 'you@company.com',
@@ -383,6 +390,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 // Password field
                 TextFormField(
                   controller: _passwordCtrl,
+                  focusNode: _passwordFocus,
                   obscureText: _obscure,
                   autocorrect: false,
                   enableSuggestions: false,
@@ -390,7 +398,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   onFieldSubmitted: (_) => _login(),
                   style: TextStyle(color: AppColors.textPrimaryOf(context)),
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    // Plain words, not dots — dots look like a pre-filled password.
+                    hintText: 'Enter your password',
                     prefixIcon: Container(
                       margin: const EdgeInsets.all(10),
                       padding: const EdgeInsets.all(8),
@@ -400,11 +409,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       child: const Icon(Icons.lock_rounded,
                           color: Colors.white, size: 16),
                     ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                          size: 20),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                    // ExcludeFocus: keyboard "next" must never land on this button.
+                    suffixIcon: ExcludeFocus(
+                      child: IconButton(
+                        icon: Icon(
+                            _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                            size: 20),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
                     ),
                   ),
                   validator: (v) =>

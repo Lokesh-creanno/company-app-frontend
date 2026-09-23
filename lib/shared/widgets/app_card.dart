@@ -242,20 +242,28 @@ class StatCard extends StatelessWidget {
                       ),
                       child: Icon(icon, color: color, size: 22),
                     ),
-                    // Value with gradient text
-                    ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: [color, color.withOpacity(0.65)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ).createShader(bounds),
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
+                    // Value with gradient text — shrinks to fit so long values
+                    // like "0.00h" don't clip on narrow phone cards.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: ShaderMask(
+                          shaderCallback: (bounds) => LinearGradient(
+                            colors: [color, color.withOpacity(0.65)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
                         ),
                       ),
                     ),
