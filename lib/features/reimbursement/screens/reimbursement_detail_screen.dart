@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/storage_service.dart';
+import '../../../core/constants.dart';
 import '../../../core/theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'reimbursement_screen.dart' show statusLabel, statusColor, claimsProvider;
@@ -94,14 +96,7 @@ class ReimbursementDetailScreen extends ConsumerWidget {
                 const Text('Bills', style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (final b in bills)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(b.toString(), width: 90, height: 90, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                              width: 90, height: 90, color: AppColors.surfaceVariant,
-                              child: const Icon(Icons.broken_image_rounded))),
-                    ),
+                  for (final b in bills) _BillThumb(url: b.toString()),
                 ]),
                 const SizedBox(height: 16),
               ],
@@ -241,6 +236,40 @@ Future<String?> _askRemark(BuildContext context, String action) async {
       ],
     ),
   );
+}
+
+// Bill photos live behind the authenticated /api/files route, so the image
+// request has to carry the access token.
+class _BillThumb extends StatelessWidget {
+  final String url;
+  const _BillThumb({required this.url});
+
+  Future<String> _fullUrl() async {
+    final token = await StorageService.read(key: AppConstants.accessTokenKey);
+    final base = url.startsWith('http') ? url : '${AppConstants.baseUrl.replaceFirst(RegExp(r'/api/?$'), '')}$url';
+    return token == null ? base : '$base?token=$token';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const box = SizedBox(width: 90, height: 90);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: FutureBuilder<String>(
+        future: _fullUrl(),
+        builder: (_, snap) {
+          if (!snap.hasData) return box;
+          return Image.network(
+            snap.data!,
+            width: 90, height: 90, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+                width: 90, height: 90, color: AppColors.surfaceVariant,
+                child: const Icon(Icons.broken_image_rounded)),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _ItemRow extends StatelessWidget {
