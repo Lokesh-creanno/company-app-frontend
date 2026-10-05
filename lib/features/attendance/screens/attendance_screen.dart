@@ -32,7 +32,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final now = DateTime.now();
       final bytes = await api.getBytes('/attendance/my/export',
           params: {'month': now.month.toString(), 'year': now.year.toString()});
-      await saveFile(bytes, 'my_attendance_${now.year}-${now.month.toString().padLeft(2, '0')}.xlsx');
+      final where = await saveFile(
+          bytes, 'my_attendance_${now.year}-${now.month.toString().padLeft(2, '0')}.xlsx');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(where)));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

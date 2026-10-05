@@ -10,6 +10,11 @@ import '../../core/theme_provider.dart';
 import 'creanno_logo.dart';
 import 'aurora_background.dart';
 
+// The drawer lives on the shell's Scaffold, but the menu button sits in each
+// page's own AppBar — Scaffold.of(context) there finds the page Scaffold, which
+// has no drawer. Pages open the drawer through this key instead.
+final shellScaffoldKey = GlobalKey<ScaffoldState>();
+
 // ─── Tab definition ───────────────────────────────────────────────────────────
 class _Tab {
   final IconData icon, activeIcon;
@@ -177,6 +182,7 @@ class _MobileShell extends ConsumerWidget {
           child,
         ],
       ),
+      key: shellScaffoldKey,
       drawer: _SideDrawer(user: user),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

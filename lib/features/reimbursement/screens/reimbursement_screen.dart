@@ -30,7 +30,10 @@ class _ReimbursementScreenState extends ConsumerState<ReimbursementScreen> {
     setState(() => _downloading = true);
     try {
       final bytes = await api.getBytes('/export/reimbursements');
-      await saveFile(bytes, 'reimbursements_all.xlsx');
+      final where = await saveFile(bytes, 'reimbursements_all.xlsx');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(where)));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

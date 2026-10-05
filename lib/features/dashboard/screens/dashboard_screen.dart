@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/ai_service.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/main_shell.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme.dart';
 import '../../../core/ai_config.dart';
@@ -63,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
           decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(10),
             border: Border.all(color: AppColors.border)),
           child: const Icon(Icons.menu_rounded, size: 18, color: AppColors.textPrimary)),
-        onPressed: () => Scaffold.of(ctx).openDrawer(),
+        onPressed: () => shellScaffoldKey.currentState?.openDrawer(),
       )),
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(DateFormat('EEEE, d MMM').format(DateTime.now()),

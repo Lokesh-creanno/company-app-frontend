@@ -210,13 +210,20 @@ class ReimbursementDetailScreen extends ConsumerWidget {
       FilledButton(style: FilledButton.styleFrom(backgroundColor: c), onPressed: onTap, child: Text(label, textAlign: TextAlign.center));
 }
 
+String _actionLabel(String action) => switch (action) {
+      'approve'   => 'Approve claim',
+      'reject'    => 'Reject claim',
+      'send_back' => 'Send back for changes',
+      _           => action.replaceAll('_', ' '),
+    };
+
 Future<String?> _askRemark(BuildContext context, String action) async {
   final ctrl = TextEditingController();
   final needReason = action == 'reject' || action == 'send_back';
   return showDialog<String>(
     context: context,
     builder: (dctx) => AlertDialog(
-      title: Text(action.replaceAll('_', ' ')),
+      title: Text(_actionLabel(action)),
       content: TextField(
         controller: ctrl,
         autofocus: true,
