@@ -2,13 +2,12 @@ class AppConstants {
   static const String appName = 'CREANNO';
 
   // ── Backend URL ────────────────────────────────────────────────────────────
-  // Override at build time with: --dart-define=API_BASE_URL=https://your-url.railway.app/api
+  // Override at build time with: --dart-define=API_BASE_URL=http://localhost:5005/api
   // Android emulator local:  http://10.0.2.2:5000/api
   // Windows local:           http://localhost:5000/api
-  // Production (Railway):    https://company-app-backend.railway.app/api
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://backend-production-8b728.up.railway.app/api',
+    defaultValue: 'https://api.creanno.app/api',
   );
 
   // Storage keys
