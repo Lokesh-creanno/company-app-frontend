@@ -10,6 +10,30 @@ import '../../../core/theme.dart';
 import '../../../core/ai_config.dart';
 import '../../../shared/services/error_log_service.dart';
 
+/// Turns a failed request into something a person can act on. Without this the
+/// screen printed Dio's raw "DioException [bad response] … status code of 403"
+/// dump, which says nothing about what to do.
+String _apiMsg(Object e) {
+  try {
+    final res = (e as dynamic).response;
+    final data = res?.data;
+    if (data is Map && data['message'] != null) return data['message'].toString();
+    switch (res?.statusCode) {
+      case 401: return 'Your session expired. Please sign in again.';
+      case 403: return 'Your account does not have access to this section.';
+      case 404: return 'Not found on the server.';
+    }
+  } catch (_) {/* not a Dio error — fall through */}
+  return e.toString();
+}
+
+/// A claim sits with Accounts first and with the Super Admin second, and each
+/// stage has its own endpoint. There is no generic `/status` route.
+String _claimActionPath(Map<String, dynamic> claim) =>
+    claim['status'] == 'pending_superadmin'
+        ? '/reimbursements/${claim['id']}/superadmin'
+        : '/reimbursements/${claim['id']}/accounts';
+
 // ─── Providers ────────────────────────────────────────────────────────────────
 
 final adminOverviewProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -44,7 +68,9 @@ final adminAttendanceProvider =
 });
 
 final adminClaimsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final response = await api.get('/reimbursements');
+  // There is no GET /reimbursements; the approver list lives at /queue, which
+  // returns every claim for a super admin.
+  final response = await api.get('/reimbursements/queue');
   return response.data['data'] as List;
 });
 
@@ -848,7 +874,7 @@ class _EmployeesTabState extends ConsumerState<_EmployeesTab> {
         child: empAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorView(
-              message: e.toString(),
+              message: _apiMsg(e),
               onRetry: () => ref.invalidate(adminEmployeesProvider(_search))),
           data: (employees) {
             if (employees.isEmpty) {
@@ -1114,10 +1140,12 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
   final _phoneCtrl = TextEditingController();
   final _deptCtrl  = TextEditingController();
   final _desgCtrl  = TextEditingController();
+  // A member cannot sign in without a password, so creation always sets one.
+  final _passCtrl  = TextEditingController();
   String _role = 'employee';
   bool _saving = false;
 
-  static const _roles = ['employee', 'manager', 'admin'];
+  static const _roles = ['employee', 'accounts', 'manager', 'admin'];
   static const _departments = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance', 'Operations', 'Design', 'Support'];
 
   @override
@@ -1186,6 +1214,12 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
                     const SizedBox(height: 14),
                     _Field(ctrl: _phoneCtrl, label: 'Phone Number', icon: Icons.phone_rounded,
                         keyboardType: TextInputType.phone),
+                    const SizedBox(height: 14),
+                    _Field(ctrl: _passCtrl, label: 'Login Password', icon: Icons.lock_rounded,
+                        required: true,
+                        validator: (v) => (v != null && v.trim().length >= 6)
+                            ? null
+                            : 'At least 6 characters'),
                   ]),
 
                   const SizedBox(height: 20),
@@ -1261,10 +1295,13 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      await api.post('/employees', data: {
+      // /admin/users (super-admin API) stores the password, so the new member
+      // can actually sign in. /employees does not and leaves them locked out.
+      await api.post('/admin/users', data: {
         'firstName': _firstCtrl.text.trim(),
         'lastName': _lastCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
+        'password': _passCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
         'role': _role,
         'department': _deptCtrl.text.isEmpty ? null : _deptCtrl.text,
@@ -1279,7 +1316,7 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: ${e.toString()}'), backgroundColor: AppColors.error));
+          content: Text(_apiMsg(e)), backgroundColor: AppColors.error));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1541,7 +1578,7 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
       Expanded(
         child: attAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(adminAttendanceProvider(_dateStr))),
+          error: (e, _) => _ErrorView(message: _apiMsg(e), onRetry: () => ref.invalidate(adminAttendanceProvider(_dateStr))),
           data: (records) {
             if (records.isEmpty) {
               return _EmptyState(
@@ -1735,7 +1772,7 @@ class _ClaimsTabState extends ConsumerState<_ClaimsTab> {
       Expanded(
         child: claimsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(adminClaimsProvider)),
+          error: (e, _) => _ErrorView(message: _apiMsg(e), onRetry: () => ref.invalidate(adminClaimsProvider)),
           data: (all) {
             final claims = _filter == 'all' ? all : all.where((c) => c['status'] == _filter).toList();
             if (claims.isEmpty) {
@@ -1831,7 +1868,8 @@ class _ClaimsTabState extends ConsumerState<_ClaimsTab> {
     int succeeded = 0;
     await Future.wait(pending.map((c) async {
       try {
-        await api.patch('/reimbursements/${c['id']}/status', data: {'status': 'approved'});
+        await api.patch(_claimActionPath(Map<String, dynamic>.from(c as Map)),
+            data: {'action': 'approve'});
         succeeded++;
       } catch (_) {}
     }));
@@ -1932,9 +1970,13 @@ class _ClaimTileState extends State<_ClaimTile> {
   Future<void> _updateStatus(String status, {String? reason}) async {
     setState(() => _loading = true);
     try {
-      final data = <String, dynamic>{'status': status};
-      if (reason != null && reason.isNotEmpty) data['rejectionReason'] = reason;
-      await api.patch('/reimbursements/${widget.claim['id']}/status', data: data);
+      final data = <String, dynamic>{
+        'action': status == 'approved' ? 'approve' : 'reject',
+      };
+      if (reason != null && reason.isNotEmpty) data['remark'] = reason;
+      await api.patch(
+          _claimActionPath(Map<String, dynamic>.from(widget.claim as Map)),
+          data: data);
       widget.onRefresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2129,7 +2171,7 @@ class _TasksTabState extends ConsumerState<_TasksTab> {
       Expanded(
         child: tasksAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(message: e.toString(), onRetry: () => ref.invalidate(adminTasksProvider)),
+          error: (e, _) => _ErrorView(message: _apiMsg(e), onRetry: () => ref.invalidate(adminTasksProvider)),
           data: (all) {
             final tasks = _filter == 'all' ? all : all.where((t) => t['status'] == _filter).toList();
             if (tasks.isEmpty) {
