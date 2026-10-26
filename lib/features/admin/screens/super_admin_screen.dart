@@ -95,6 +95,76 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
     }
   }
 
+  /// Set or replace one member's password, without touching the rest of their
+  /// profile. Offers a generated suggestion so nobody reuses "123456".
+  Future<void> _resetPassword(Map<String, dynamic> u) async {
+    final ctrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final name = '${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.trim();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setD) => AlertDialog(
+          title: const Text('Set / reset password'),
+          content: Form(
+            key: formKey,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('$name · ${u['email'] ?? ''}',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondaryOf(dctx))),
+              ),
+              const SizedBox(height: 14),
+              PasswordField(controller: ctrl, label: 'New password'),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: const Text('Suggest a strong one'),
+                  onPressed: () => setD(() => ctrl.text = suggestPassword()),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() != true) return;
+                Navigator.pop(dctx, true);
+              },
+              child: const Text('Save password'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+    try {
+      await api.patch('/admin/users/${u['id']}',
+          data: {'password': ctrl.text.trim()});
+      if (!mounted) return;
+      _toast('Password updated');
+      // Hand over the new details immediately — nobody has to hunt for them.
+      await showLoginCard(
+        context,
+        name: name,
+        email: u['email']?.toString() ?? '',
+        password: ctrl.text.trim(),
+        employeeId: u['employeeId']?.toString(),
+      );
+    } catch (e) {
+      _toast(_msg(e), ok: false);
+    }
+  }
+
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
     final changed = await showDialog<bool>(
       context: context,
@@ -248,6 +318,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                                 itemBuilder: (_, i) => _UserTile(
                                   user: _filtered[i],
                                   onViewPassword: () => _viewPassword(_filtered[i]),
+                                  onResetPassword: () => _resetPassword(_filtered[i]),
                                   onEdit: () => _openForm(existing: _filtered[i]),
                                   onArchive: (a) => _archive(_filtered[i], a),
                                 ),
@@ -264,11 +335,13 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
 class _UserTile extends StatelessWidget {
   final Map<String, dynamic> user;
   final VoidCallback onViewPassword;
+  final VoidCallback onResetPassword;
   final VoidCallback onEdit;
   final void Function(bool archive) onArchive;
   const _UserTile({
     required this.user,
     required this.onViewPassword,
+    required this.onResetPassword,
     required this.onEdit,
     required this.onArchive,
   });
@@ -326,6 +399,7 @@ class _UserTile extends StatelessWidget {
             PopupMenuButton<String>(
               onSelected: (v) {
                 if (v == 'password') onViewPassword();
+                if (v == 'reset') onResetPassword();
                 if (v == 'edit') onEdit();
                 if (v == 'archive') onArchive(true);
                 if (v == 'restore') onArchive(false);
@@ -333,7 +407,9 @@ class _UserTile extends StatelessWidget {
               itemBuilder: (_) => [
                 const PopupMenuItem(
                     value: 'password', child: Text('View password / share login card')),
-                const PopupMenuItem(value: 'edit', child: Text('Edit / reset password')),
+                const PopupMenuItem(
+                    value: 'reset', child: Text('Set / reset password')),
+                const PopupMenuItem(value: 'edit', child: Text('Edit profile')),
                 if (!archived)
                   const PopupMenuItem(value: 'archive', child: Text('Archive'))
                 else

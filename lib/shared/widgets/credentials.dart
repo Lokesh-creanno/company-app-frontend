@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme.dart';
@@ -73,6 +75,19 @@ class _PasswordFieldState extends State<PasswordField> {
           },
     );
   }
+}
+
+/// A readable password that still resists guessing: no look-alike characters
+/// (0/O, 1/l/I), so it survives being written down and typed back in.
+String suggestPassword() {
+  const letters = 'abcdefghijkmnpqrstuvwxyz';
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  final r = Random.secure();
+  String pick(String s, int n) =>
+      List.generate(n, (_) => s[r.nextInt(s.length)]).join();
+  final body = pick(upper, 1) + pick(letters, 5) + pick(digits, 3);
+  return '$body@';
 }
 
 /// The text a super admin hands to a new member. Kept in one place so the card
