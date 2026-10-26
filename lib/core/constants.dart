@@ -10,6 +10,9 @@ class AppConstants {
     defaultValue: 'https://api.creanno.app/api',
   );
 
+  /// Shown on the login card a super admin hands to a new member.
+  static const String webAppUrl = 'https://app.creanno.app';
+
   // Storage keys
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';

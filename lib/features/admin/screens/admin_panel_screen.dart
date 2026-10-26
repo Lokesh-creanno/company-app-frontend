@@ -9,6 +9,7 @@ import '../../../shared/widgets/app_card.dart';
 import '../../../core/theme.dart';
 import '../../../core/ai_config.dart';
 import '../../../shared/services/error_log_service.dart';
+import '../../../shared/widgets/credentials.dart';
 
 /// Turns a failed request into something a person can act on. Without this the
 /// screen printed Dio's raw "DioException [bad response] … status code of 403"
@@ -1215,11 +1216,7 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
                     _Field(ctrl: _phoneCtrl, label: 'Phone Number', icon: Icons.phone_rounded,
                         keyboardType: TextInputType.phone),
                     const SizedBox(height: 14),
-                    _Field(ctrl: _passCtrl, label: 'Login Password', icon: Icons.lock_rounded,
-                        required: true,
-                        validator: (v) => (v != null && v.trim().length >= 6)
-                            ? null
-                            : 'At least 6 characters'),
+                    PasswordField(controller: _passCtrl, label: 'Login Password'),
                   ]),
 
                   const SizedBox(height: 20),
@@ -1308,10 +1305,14 @@ class _AddEmployeeSheetState extends ConsumerState<_AddEmployeeSheet> {
         'designation': _desgCtrl.text.trim().isEmpty ? null : _desgCtrl.text.trim(),
       });
       if (mounted) {
+        final name = '${_firstCtrl.text.trim()} ${_lastCtrl.text.trim()}'.trim();
+        final email = _emailCtrl.text.trim();
+        final pass = _passCtrl.text.trim();
         Navigator.pop(context);
         widget.onSaved();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Team member added successfully!'), backgroundColor: AppColors.success));
+        // Hand over the credentials straight away — otherwise the password is
+        // only recoverable through the user menu later.
+        await showLoginCard(context, name: name, email: email, password: pass);
       }
     } catch (e) {
       if (mounted) {

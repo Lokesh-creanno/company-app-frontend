@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/location_service.dart';
+import '../../../shared/widgets/credentials.dart';
 import '../../auth/providers/auth_provider.dart';
 
 // Super Admin control center: create / list / view-password / archive users.
@@ -82,25 +83,12 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
       final res = await api.get('/admin/users/${u['id']}/password');
       final pw = res.data['data']['password']?.toString() ?? '(none)';
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (dctx) => AlertDialog(
-          title: const Text('Password'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(u['email']?.toString() ?? '',
-                  style: TextStyle(color: AppColors.textSecondaryOf(context), fontSize: 13)),
-              const SizedBox(height: 12),
-              SelectableText(pw,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Close')),
-          ],
-        ),
+      await showLoginCard(
+        context,
+        name: '${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.trim(),
+        email: u['email']?.toString() ?? '',
+        password: pw,
+        employeeId: u['employeeId']?.toString(),
       );
     } catch (e) {
       _toast(_msg(e), ok: false);
@@ -343,7 +331,8 @@ class _UserTile extends StatelessWidget {
                 if (v == 'restore') onArchive(false);
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'password', child: Text('View password')),
+                const PopupMenuItem(
+                    value: 'password', child: Text('View password / share login card')),
                 const PopupMenuItem(value: 'edit', child: Text('Edit / reset password')),
                 if (!archived)
                   const PopupMenuItem(value: 'archive', child: Text('Archive'))
@@ -487,20 +476,12 @@ class _UserFormDialogState extends State<_UserFormDialog> {
                 _field(_email, 'Email', req: !_isEdit, enabled: !_isEdit,
                     keyboard: TextInputType.emailAddress),
                 const SizedBox(height: 12),
-                TextFormField(
+                PasswordField(
                   controller: _password,
-                  decoration: InputDecoration(
-                      labelText: _isEdit
-                          ? 'New password (leave blank to keep)'
-                          : 'Password'),
-                  validator: (v) {
-                    final val = v ?? '';
-                    if (!_isEdit && val.isEmpty) return 'Required';
-                    if (val.isNotEmpty && val.length < 6) {
-                      return 'At least 6 characters';
-                    }
-                    return null;
-                  },
+                  label: _isEdit
+                      ? 'New password (leave blank to keep)'
+                      : 'Password',
+                  required: !_isEdit,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
