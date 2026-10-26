@@ -46,12 +46,18 @@ class _PasswordFieldState extends State<PasswordField> {
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
+        // The colour is set here on purpose: the app theme styles prefixIcon
+        // but not suffixIcon, and the inherited default came out invisible
+        // against the field's light fill.
+        suffixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
         suffixIcon: ExcludeFocus(
           child: IconButton(
             tooltip: _hidden ? 'Show password' : 'Hide password',
+            color: AppColors.primary,
             icon: Icon(
-              _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              _hidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
               size: 20,
+              color: AppColors.primary,
             ),
             onPressed: () => setState(() => _hidden = !_hidden),
           ),

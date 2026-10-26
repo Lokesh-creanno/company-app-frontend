@@ -371,6 +371,7 @@ class AppTheme {
         hintStyle: GoogleFonts.poppins(color: textTer, fontSize: 14),
         labelStyle: GoogleFonts.poppins(color: textSec, fontSize: 14),
         prefixIconColor: textSec,
+        suffixIconColor: textSec,
       ),
 
       // ── Navigation Bar (mobile) ─────────────────────────────────────────────
