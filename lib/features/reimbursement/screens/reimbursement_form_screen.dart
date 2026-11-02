@@ -38,6 +38,9 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
   final _title = TextEditingController(text: 'Reimbursement ${DateFormat('MMM yyyy').format(DateTime.now())}');
   final List<_Line> _lines = [_Line()];
   final List<PlatformFile> _bills = [];
+  static const _maxBillMb = 4;
+  static const _maxBillBytes = _maxBillMb * 1024 * 1024;
+  static const _billTypes = ['pdf', 'jpg', 'jpeg', 'png'];
   bool _saving = false;
 
   double get _total => _lines.fold(0.0, (s, l) => s + l.amt);
@@ -57,18 +60,29 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
         allowMultiple: true,
         withData: true, // web gives no path, so we need the bytes
         type: FileType.custom,
-        allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+        allowedExtensions: _billTypes,
       );
       if (res == null) return; // user cancelled
-      final usable = res.files.where((f) => f.bytes != null).toList();
+      final readable = res.files.where((f) => f.bytes != null).toList();
+      // Same rule the server enforces, checked here so the person is told
+      // before a long upload fails.
+      final tooBig = readable.where((f) => f.size > _maxBillBytes).toList();
+      final usable = readable.where((f) => f.size <= _maxBillBytes).toList();
       if (!mounted) return;
-      if (usable.isEmpty) {
+      if (tooBig.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tooBig.length == 1
+                ? '${tooBig.first.name} is ${(tooBig.first.size / 1048576).toStringAsFixed(1)} MB. Each bill must be under $_maxBillMb MB.'
+                : '${tooBig.length} files are over $_maxBillMb MB and were left out.'),
+            backgroundColor: AppColors.error));
+      }
+      if (usable.isEmpty && tooBig.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Could not read those files. Try again.'),
             backgroundColor: AppColors.error));
         return;
       }
-      setState(() => _bills.addAll(usable));
+      if (usable.isNotEmpty) setState(() => _bills.addAll(usable));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -180,8 +194,14 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
           const SizedBox(height: 16),
           // Bills
           Row(children: [
+            // The app theme gives every OutlinedButton an infinite minimum
+            // width, which makes it unlayoutable inside a Row — the button
+            // simply never appeared. Override the size here.
             OutlinedButton.icon(
               onPressed: _pickBills,
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(150, 46),
+                  padding: const EdgeInsets.symmetric(horizontal: 16)),
               icon: const Icon(Icons.attach_file_rounded),
               label: const Text('Attach bills'),
             ),
@@ -189,7 +209,7 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
             Expanded(
               child: Text(
                 _bills.isEmpty
-                    ? 'Photo or PDF'
+                    ? 'PDF, JPG or PNG · under $_maxBillMb MB'
                     : '${_bills.length} file${_bills.length == 1 ? '' : 's'} attached',
                 style: TextStyle(color: AppColors.textSecondaryOf(context)),
               ),

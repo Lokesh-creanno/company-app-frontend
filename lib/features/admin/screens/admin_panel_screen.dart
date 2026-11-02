@@ -2346,6 +2346,9 @@ class _ClaimTileState extends State<_ClaimTile> {
                   side: const BorderSide(color: AppColors.error),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   visualDensity: VisualDensity.compact,
+                  // Without this the theme's infinite minimum width applies and
+                  // the button cannot be laid out inside this Row.
+                  minimumSize: const Size(0, 32),
                 ),
               ),
               const SizedBox(width: 8),
