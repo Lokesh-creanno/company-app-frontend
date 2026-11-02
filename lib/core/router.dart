@@ -6,7 +6,7 @@ import '../features/auth/screens/otp_screen.dart';
 import '../features/admin/screens/super_admin_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/attendance/screens/attendance_screen.dart';
-import '../features/tasks/screens/tasks_screen.dart';
+import '../features/tasks/screens/real_tasks_screen.dart';
 import '../features/tasks/screens/task_detail_screen.dart';
 import '../features/reimbursement/screens/reimbursement_screen.dart';
 import '../features/reimbursement/screens/reimbursement_form_screen.dart';
@@ -82,7 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // ── Tasks: with prev/next list context ────────────────────────────
           GoRoute(
             path: '/tasks',
-            builder: (_, __) => const TasksScreen(),
+            builder: (_, __) => const RealTasksScreen(),
             routes: [
               GoRoute(
                 path: ':id',
