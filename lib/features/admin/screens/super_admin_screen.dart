@@ -2,11 +2,21 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/location_service.dart';
 import '../../../shared/widgets/credentials.dart';
 import '../../auth/providers/auth_provider.dart';
+
+/// Server's own words where it gives them, a plain sentence otherwise.
+String _apiMessage(Object e) {
+  if (e is DioException) {
+    return e.response?.data?['message']?.toString() ??
+        'Cannot reach server. Check your connection.';
+  }
+  return 'Something went wrong.';
+}
 
 // Super Admin control center: create / list / view-password / archive users.
 class SuperAdminScreen extends ConsumerStatefulWidget {
@@ -165,6 +175,23 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
     }
   }
 
+  /// Everything about one member in one place: who they are, and the days and
+  /// times they marked attendance, with where from.
+  Future<void> _openMember(Map<String, dynamic> u) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MemberSheet(
+        user: u,
+        onViewPassword: () => _viewPassword(u),
+        onResetPassword: () => _resetPassword(u),
+        onEdit: () => _openForm(existing: u),
+      ),
+    );
+    _load();
+  }
+
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
     final changed = await showDialog<bool>(
       context: context,
@@ -317,6 +344,7 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
                                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                                 itemBuilder: (_, i) => _UserTile(
                                   user: _filtered[i],
+                                  onOpen: () => _openMember(_filtered[i]),
                                   onViewPassword: () => _viewPassword(_filtered[i]),
                                   onResetPassword: () => _resetPassword(_filtered[i]),
                                   onEdit: () => _openForm(existing: _filtered[i]),
@@ -334,12 +362,14 @@ class _SuperAdminScreenState extends ConsumerState<SuperAdminScreen> {
 // ─── One user row ─────────────────────────────────────────────────────────────
 class _UserTile extends StatelessWidget {
   final Map<String, dynamic> user;
+  final VoidCallback onOpen;
   final VoidCallback onViewPassword;
   final VoidCallback onResetPassword;
   final VoidCallback onEdit;
   final void Function(bool archive) onArchive;
   const _UserTile({
     required this.user,
+    required this.onOpen,
     required this.onViewPassword,
     required this.onResetPassword,
     required this.onEdit,
@@ -353,7 +383,10 @@ class _UserTile extends StatelessWidget {
     final name = '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}'.trim();
     return Opacity(
       opacity: archived ? 0.55 : 1,
-      child: Container(
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.surfaceOf(context),
@@ -418,6 +451,7 @@ class _UserTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -637,6 +671,332 @@ class _ErrorState extends StatelessWidget {
           Center(child: Text(message, textAlign: TextAlign.center)),
           const SizedBox(height: 16),
           Center(child: FilledButton(onPressed: onRetry, child: const Text('Retry'))),
+        ],
+      );
+}
+
+// ─── One member, in full ──────────────────────────────────────────────────────
+// Who they are, plus the days and times they marked attendance and where from.
+class _MemberSheet extends StatefulWidget {
+  final Map<String, dynamic> user;
+  final VoidCallback onViewPassword;
+  final VoidCallback onResetPassword;
+  final VoidCallback onEdit;
+  const _MemberSheet({
+    required this.user,
+    required this.onViewPassword,
+    required this.onResetPassword,
+    required this.onEdit,
+  });
+
+  @override
+  State<_MemberSheet> createState() => _MemberSheetState();
+}
+
+class _MemberSheetState extends State<_MemberSheet> {
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  List<Map<String, dynamic>> _days = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  String _two(int n) => n.toString().padLeft(2, '0');
+  String get _firstDay => '${_month.year}-${_two(_month.month)}-01';
+  String get _lastDay {
+    final last = DateTime(_month.year, _month.month + 1, 0);
+    return '${last.year}-${_two(last.month)}-${_two(last.day)}';
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await api.get('/attendance/report', params: {
+        'startDate': _firstDay,
+        'endDate': _lastDay,
+        'userId': widget.user['id'],
+      });
+      final list = (res.data['data'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList()
+        ..sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
+      if (mounted) {
+        setState(() {
+          _days = list;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = _apiMessage(e);
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _shiftMonth(int by) {
+    setState(() => _month = DateTime(_month.year, _month.month + by));
+    _load();
+  }
+
+  String _time(dynamic iso) {
+    if (iso == null) return '--:--';
+    final t = DateTime.tryParse(iso.toString());
+    return t == null ? '--:--' : DateFormat('HH:mm').format(t.toLocal());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final u = widget.user;
+    final name = '${u['firstName'] ?? ''} ${u['lastName'] ?? ''}'.trim();
+    final role = (u['role'] ?? 'employee').toString();
+    final present = _days.where((d) => d['checkInTime'] != null).length;
+    final late = _days.where((d) => d['isLate'] == true).length;
+    final field = _days.where((d) => d['mode'] == 'field').length;
+    final hours = _days.fold<double>(
+        0, (s, d) => s + (double.tryParse('${d['workingHours'] ?? 0}') ?? 0));
+    final now = DateTime.now();
+    final atThisMonth = _month.year == now.year && _month.month == now.month;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: ListView(
+          controller: scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                    color: AppColors.borderOf(context),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Row(children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: _roleColor(role).withOpacity(0.15),
+                child: Text((name.isNotEmpty ? name[0] : '?').toUpperCase(),
+                    style: TextStyle(
+                        color: _roleColor(role),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child:
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name.isEmpty ? '(no name)' : name,
+                      style:
+                          const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(u['email']?.toString() ?? '',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textSecondaryOf(context))),
+                ]),
+              ),
+              _RoleChip(role: role),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(spacing: 16, runSpacing: 6, children: [
+              _Fact(label: 'Staff ID', value: u['employeeId']?.toString() ?? '—'),
+              _Fact(label: 'Department', value: u['department']?.toString() ?? '—'),
+              _Fact(
+                  label: 'Designation', value: u['designation']?.toString() ?? '—'),
+              _Fact(label: 'Phone', value: u['phone']?.toString() ?? '—'),
+              _Fact(
+                  label: 'Status',
+                  value: u['isArchived'] == true ? 'Archived' : 'Active'),
+            ]),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 38)),
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onViewPassword();
+                },
+                icon: const Icon(Icons.badge_outlined, size: 16),
+                label: const Text('Login card'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 38)),
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onResetPassword();
+                },
+                icon: const Icon(Icons.key_rounded, size: 16),
+                label: const Text('Set / reset password'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 38)),
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onEdit();
+                },
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Edit profile'),
+              ),
+            ]),
+            const Divider(height: 28),
+            Row(children: [
+              IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: () => _shiftMonth(-1)),
+              Expanded(
+                child: Text(DateFormat('MMMM yyyy').format(_month),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+              IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: atThisMonth ? null : () => _shiftMonth(1)),
+            ]),
+            if (!_loading && _error == null)
+              Text(
+                '$present day${present == 1 ? '' : 's'} present · $late late · $field field · ${hours.toStringAsFixed(1)}h',
+                style: TextStyle(
+                    fontSize: 12.5, color: AppColors.textSecondaryOf(context)),
+              ),
+            const SizedBox(height: 10),
+            if (_loading)
+              const Padding(
+                  padding: EdgeInsets.all(28),
+                  child: Center(child: CircularProgressIndicator()))
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(children: [
+                  Text(_error!, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  TextButton(onPressed: _load, child: const Text('Retry')),
+                ]),
+              )
+            else if (_days.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                child: Center(
+                  child: Text(
+                      'No attendance marked in ${DateFormat('MMMM yyyy').format(_month)}',
+                      style:
+                          TextStyle(color: AppColors.textSecondaryOf(context))),
+                ),
+              )
+            else
+              ..._days.map((d) {
+                final loc = d['checkInLocation'];
+                final m = loc is Map ? loc : null;
+                final coords = (m?['lat'] != null && m?['lng'] != null)
+                    ? '${(m!['lat'] as num).toStringAsFixed(5)}, ${(m['lng'] as num).toStringAsFixed(5)}'
+                    : null;
+                final note = m?['note']?.toString();
+                final isField = d['mode'] == 'field';
+                final date = DateTime.tryParse('${d['date']}');
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SizedBox(
+                      width: 74,
+                      child: Text(
+                          date == null
+                              ? '${d['date']}'
+                              : DateFormat('d MMM, EEE').format(date),
+                          style: const TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    ),
+                    SizedBox(
+                      width: 92,
+                      child: Text(
+                          '${_time(d['checkInTime'])} – ${_time(d['checkOutTime'])}',
+                          style: const TextStyle(fontSize: 12.5)),
+                    ),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isField ? AppColors.info : AppColors.success)
+                            .withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(isField ? 'FIELD' : 'OFFICE',
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color:
+                                  isField ? AppColors.info : AppColors.success)),
+                    ),
+                    if (d['isLate'] == true) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: AppColors.warning.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6)),
+                        child: const Text('LATE',
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.warning)),
+                      ),
+                    ],
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        [
+                          if (note != null && note.isNotEmpty) note,
+                          if (coords != null) coords
+                        ].join(' · '),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondaryOf(context)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Fact extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Fact({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10.5, color: AppColors.textSecondaryOf(context))),
+          Text(value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       );
 }
