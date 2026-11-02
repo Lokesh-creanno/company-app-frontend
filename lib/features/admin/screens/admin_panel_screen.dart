@@ -10,6 +10,7 @@ import '../../../core/theme.dart';
 import '../../../core/ai_config.dart';
 import '../../../shared/services/error_log_service.dart';
 import '../../../shared/widgets/credentials.dart';
+import '../../../shared/services/download_service.dart';
 
 /// Turns a failed request into something a person can act on. Without this the
 /// screen printed Dio's raw "DioException [bad response] … status code of 403"
@@ -59,6 +60,17 @@ final adminEmployeesProvider =
   final params = <String, dynamic>{};
   if (search.isNotEmpty) params['search'] = search;
   final response = await api.get('/employees', params: params);
+  return response.data['data'] as List;
+});
+
+/// Whole-team attendance for one month, keyed by 'yyyy-MM'.
+final adminMonthAttendanceProvider =
+    FutureProvider.autoDispose.family<List<dynamic>, String>((ref, monthKey) async {
+  final first = DateTime.parse('$monthKey-01');
+  final last = DateTime(first.year, first.month + 1, 0);
+  final f = DateFormat('yyyy-MM-dd');
+  final response = await api.get('/attendance/report',
+      params: {'startDate': f.format(first), 'endDate': f.format(last)});
   return response.data['data'] as List;
 });
 
@@ -1522,6 +1534,217 @@ class _InfoRow extends StatelessWidget {
 // TAB 3 — ATTENDANCE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Whole team, one month at a time: a line per person with their totals, and
+/// every day underneath with time, office/field and where they were.
+class _MonthAttendanceView extends ConsumerStatefulWidget {
+  final bool isWide;
+  const _MonthAttendanceView({required this.isWide});
+  @override
+  ConsumerState<_MonthAttendanceView> createState() => _MonthAttendanceViewState();
+}
+
+class _MonthAttendanceViewState extends ConsumerState<_MonthAttendanceView> {
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  bool _downloading = false;
+
+  String get _key => DateFormat('yyyy-MM').format(_month);
+  bool get _atCurrentMonth {
+    final now = DateTime.now();
+    return _month.year == now.year && _month.month == now.month;
+  }
+
+  Future<void> _downloadMonth() async {
+    setState(() => _downloading = true);
+    try {
+      final f = DateFormat('yyyy-MM-dd');
+      final last = DateTime(_month.year, _month.month + 1, 0);
+      final bytes = await api.getBytes('/export/attendance', params: {
+        'startDate': f.format(_month),
+        'endDate': f.format(last),
+      });
+      final where = await saveFile(bytes, 'attendance_$_key.xlsx');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(where)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_apiMsg(e)), backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(adminMonthAttendanceProvider(_key));
+    final pad = widget.isWide ? 24.0 : 16.0;
+
+    return Column(children: [
+      Container(
+        color: AppColors.surfaceOf(context),
+        padding: EdgeInsets.fromLTRB(pad, 12, pad, 12),
+        child: Row(children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
+          ),
+          Expanded(
+            child: Text(DateFormat('MMMM yyyy').format(_month),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: _atCurrentMonth
+                ? null
+                : () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
+          ),
+          _downloading
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+              : IconButton(
+                  tooltip: 'Download this month as Excel',
+                  icon: const Icon(Icons.download_rounded),
+                  onPressed: _downloadMonth,
+                ),
+        ]),
+      ),
+      Expanded(
+        child: async.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErrorView(
+              message: _apiMsg(e),
+              onRetry: () => ref.invalidate(adminMonthAttendanceProvider(_key))),
+          data: (records) {
+            if (records.isEmpty) {
+              return _EmptyState(
+                  icon: Icons.event_busy_rounded,
+                  message: 'No attendance this month',
+                  subtitle: 'Nobody marked attendance in ${DateFormat('MMMM yyyy').format(_month)}');
+            }
+
+            // Group the flat list by person.
+            final byUser = <String, List<Map<String, dynamic>>>{};
+            final names = <String, String>{};
+            for (final raw in records) {
+              final r = Map<String, dynamic>.from(raw as Map);
+              final emp = (r['employee'] as Map?) ?? const {};
+              final id = (emp['id'] ?? r['userId'] ?? '?').toString();
+              names[id] = '${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}'.trim().isEmpty
+                  ? 'Unknown'
+                  : '${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}'.trim();
+              (byUser[id] ??= []).add(r);
+            }
+            final ids = byUser.keys.toList()
+              ..sort((a, b) => names[a]!.toLowerCase().compareTo(names[b]!.toLowerCase()));
+
+            return ListView.builder(
+              padding: EdgeInsets.fromLTRB(pad, 8, pad, 24),
+              itemCount: ids.length,
+              itemBuilder: (_, i) {
+                final id = ids[i];
+                final days = byUser[id]!
+                  ..sort((a, b) => (a['date'] ?? '').toString().compareTo((b['date'] ?? '').toString()));
+                final present = days.where((d) => d['checkInTime'] != null).length;
+                final late = days.where((d) => d['isLate'] == true).length;
+                final field = days.where((d) => d['mode'] == 'field').length;
+                final hours = days.fold<double>(
+                    0, (s, d) => s + (double.tryParse('${d['workingHours'] ?? 0}') ?? 0));
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ExpansionTile(
+                    title: Text(names[id]!,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(
+                        '$present day${present == 1 ? '' : 's'} present · $late late · $field field · ${hours.toStringAsFixed(1)}h',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondaryOf(context))),
+                    children: days.map((d) => _MonthDayRow(record: d)).toList(),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    ]);
+  }
+}
+
+/// One day inside a person's month: date, in/out, office or field, and place.
+class _MonthDayRow extends StatelessWidget {
+  final Map<String, dynamic> record;
+  const _MonthDayRow({required this.record});
+
+  String _time(dynamic iso) {
+    if (iso == null) return '--:--';
+    final t = DateTime.tryParse(iso.toString());
+    return t == null ? '--:--' : DateFormat('HH:mm').format(t.toLocal());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = record['checkInLocation'];
+    final map = loc is Map ? loc : null;
+    final coords = (map?['lat'] != null && map?['lng'] != null)
+        ? '${(map!['lat'] as num).toStringAsFixed(5)}, ${(map['lng'] as num).toStringAsFixed(5)}'
+        : null;
+    final note = map?['note']?.toString();
+    final isField = record['mode'] == 'field';
+    final date = DateTime.tryParse('${record['date']}');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: 78,
+          child: Text(date == null ? '${record['date']}' : DateFormat('d MMM, EEE').format(date),
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+        ),
+        SizedBox(
+          width: 96,
+          child: Text('${_time(record['checkInTime'])} – ${_time(record['checkOutTime'])}',
+              style: const TextStyle(fontSize: 12.5)),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: (isField ? AppColors.info : AppColors.success).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(isField ? 'FIELD' : 'OFFICE',
+              style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: isField ? AppColors.info : AppColors.success)),
+        ),
+        if (record['isLate'] == true) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6)),
+            child: const Text('LATE',
+                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppColors.warning)),
+          ),
+        ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            [if (note != null && note.isNotEmpty) note, if (coords != null) coords].join(' · '),
+            style: TextStyle(fontSize: 11.5, color: AppColors.textSecondaryOf(context)),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 class _AttendanceTab extends ConsumerStatefulWidget {
   final bool isWide;
   const _AttendanceTab({required this.isWide});
@@ -1531,6 +1754,7 @@ class _AttendanceTab extends ConsumerStatefulWidget {
 
 class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
   DateTime _selectedDate = DateTime.now();
+  bool _monthly = true; // the month view answers "who came in this month?"
 
   String get _dateStr => DateFormat('yyyy-MM-dd').format(_selectedDate);
   String get _dateDisplay => DateFormat('d MMM yyyy, EEEE').format(_selectedDate);
@@ -1539,6 +1763,31 @@ class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
   Widget build(BuildContext context) {
     final attAsync = ref.watch(adminAttendanceProvider(_dateStr));
 
+    return Column(children: [
+      // Day / Month switch
+      Container(
+        color: AppColors.surfaceOf(context),
+        padding: EdgeInsets.fromLTRB(widget.isWide ? 24 : 16, 12, widget.isWide ? 24 : 16, 0),
+        child: Row(children: [
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('Day'), icon: Icon(Icons.today_rounded, size: 16)),
+              ButtonSegment(value: true, label: Text('Month'), icon: Icon(Icons.calendar_month_rounded, size: 16)),
+            ],
+            selected: {_monthly},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => setState(() => _monthly = s.first),
+          ),
+        ]),
+      ),
+      if (_monthly)
+        Expanded(child: _MonthAttendanceView(isWide: widget.isWide))
+      else
+        Expanded(child: _buildDayView(context, attAsync)),
+    ]);
+  }
+
+  Widget _buildDayView(BuildContext context, AsyncValue<List<dynamic>> attAsync) {
     return Column(children: [
       // Date selector
       Container(

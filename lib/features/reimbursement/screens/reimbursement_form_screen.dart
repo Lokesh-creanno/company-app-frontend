@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../core/theme.dart';
 
@@ -37,7 +37,7 @@ class ReimbursementFormScreen extends ConsumerStatefulWidget {
 class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScreen> {
   final _title = TextEditingController(text: 'Reimbursement ${DateFormat('MMM yyyy').format(DateTime.now())}');
   final List<_Line> _lines = [_Line()];
-  final List<XFile> _bills = [];
+  final List<PlatformFile> _bills = [];
   bool _saving = false;
 
   double get _total => _lines.fold(0.0, (s, l) => s + l.amt);
@@ -49,11 +49,32 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
     super.dispose();
   }
 
+  // File picker, not image picker: bills arrive as PDFs as often as photos, and
+  // the old empty catch hid every failure, so the button looked dead.
   Future<void> _pickBills() async {
     try {
-      final picked = await ImagePicker().pickMultiImage();
-      if (picked.isNotEmpty) setState(() => _bills.addAll(picked));
-    } catch (_) {}
+      final res = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: true, // web gives no path, so we need the bytes
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      );
+      if (res == null) return; // user cancelled
+      final usable = res.files.where((f) => f.bytes != null).toList();
+      if (!mounted) return;
+      if (usable.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not read those files. Try again.'),
+            backgroundColor: AppColors.error));
+        return;
+      }
+      setState(() => _bills.addAll(usable));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not open files: $e'),
+          backgroundColor: AppColors.error));
+    }
   }
 
   bool _valid() {
@@ -77,8 +98,8 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
       form.fields.add(MapEntry('title', _title.text.trim()));
       form.fields.add(MapEntry('items', jsonEncode(_lines.map((l) => l.toJson()).toList())));
       for (final b in _bills) {
-        final bytes = await b.readAsBytes();
-        form.files.add(MapEntry('bills', MultipartFile.fromBytes(bytes, filename: b.name)));
+        form.files.add(MapEntry(
+            'bills', MultipartFile.fromBytes(b.bytes!, filename: b.name)));
       }
       final res = await api.postForm('/reimbursements', form);
       final warnings = (res.data['data']?['duplicateWarnings'] as List?)?.cast<String>() ?? [];
@@ -161,14 +182,41 @@ class _ReimbursementFormScreenState extends ConsumerState<ReimbursementFormScree
           Row(children: [
             OutlinedButton.icon(
               onPressed: _pickBills,
-              icon: const Icon(Icons.photo_camera_rounded),
+              icon: const Icon(Icons.attach_file_rounded),
               label: const Text('Attach bills'),
             ),
             const SizedBox(width: 10),
-            if (_bills.isNotEmpty)
-              Text('${_bills.length} photo${_bills.length == 1 ? '' : 's'}',
-                  style: const TextStyle(color: AppColors.textSecondary)),
+            Expanded(
+              child: Text(
+                _bills.isEmpty
+                    ? 'Photo or PDF'
+                    : '${_bills.length} file${_bills.length == 1 ? '' : 's'} attached',
+                style: TextStyle(color: AppColors.textSecondaryOf(context)),
+              ),
+            ),
           ]),
+          // Show what is attached so a wrong file can be taken off again.
+          if (_bills.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(_bills.length, (i) {
+                final f = _bills[i];
+                final kb = ((f.size) / 1024).round();
+                return Chip(
+                  avatar: Icon(
+                      f.extension == 'pdf'
+                          ? Icons.picture_as_pdf_rounded
+                          : Icons.image_rounded,
+                      size: 18),
+                  label: Text('${f.name}  ·  $kb KB',
+                      overflow: TextOverflow.ellipsis),
+                  onDeleted: () => setState(() => _bills.removeAt(i)),
+                );
+              }),
+            ),
+          ],
         ],
       ),
       bottomSheet: Container(
